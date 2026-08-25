@@ -1,43 +1,34 @@
-# Project 1: Foundation - Pet-Supplies E-commerce Platform
+# HappyPets - Full Stack E-commerce Platform
 
 ## Project Overview
 
-This is the backend foundation (Project 1) for a B2C E-commerce platform focused on Pet Supplies. **The platform implements a Business-to-Consumer (B2C) e-commerce model.** It provides a robust, scalable, and secure API for User Management (Authentication, Authorization, 2FA, OAuth) and a highly capable Product Catalog (Faceted search, Dynamic suggestions). 
+**HappyPets** is a fully-featured, production-ready Business-to-Consumer (B2C) e-commerce platform focused on Pet Supplies. This repository contains both the robust backend API and the beautifully designed React SPA frontend.
+
+The platform includes comprehensive features required for a modern e-commerce application, including secure authentication, a faceted product catalog, shopping cart functionality, a checkout flow with Stripe integration, order management, and a rich user dashboard (featuring Address Book and Payment Methods management).
 
 It is built using:
-- **Node.js, Express, TypeScript** for the API.
-- **PostgreSQL** for an ACID-compliant relational database.
-- **Prisma** as a type-safe ORM.
-- **Docker & Docker Compose** for one-click containerization.
+- **Frontend:** React, TypeScript, Vite, Lucide React (Icons), and plain CSS for a custom, glassmorphic UI.
+- **Backend:** Node.js, Express, TypeScript for the API.
+- **Database:** PostgreSQL for an ACID-compliant relational database, managed via Prisma ORM.
+- **Messaging/Workers:** RabbitMQ for asynchronous tasks (e.g., order confirmation emails).
+- **Infrastructure:** Docker & Docker Compose for seamless one-click containerization and deployment.
 
-## Setup and Installation Instructions
+## Setup and Installation
 
 This project is fully containerized. The only prerequisite is to have **Docker** and **Docker Compose** installed on your machine.
 
-1. **Clone the repository** (if applicable) and navigate to the root directory.
+1. **Clone the repository** and navigate to the root directory.
 2. **Start the application** by running the following command:
 
 ```bash
-docker-compose up --build
+docker-compose up --build -d
 ```
 
 This single command will:
-1. Pull and start a PostgreSQL 15 container for the database.
-2. Build the Node.js API container and run Prisma migrations automatically.
-3. Build the React SPA frontend container using Nginx.
-4. Start the Express server on `http://localhost:3000`.
-5. Start the React frontend on `http://localhost:5173`.
-
-## Testing
-
-Automated tests are written using Jest and Supertest. 
-To run the test suite locally (requires `npm install` first):
-
-```bash
-npm run test
-```
-
-*Note: Ensure you have Node.js installed if you wish to run the tests locally outside of the Docker container.*
+1. Pull and start a PostgreSQL container for the database.
+2. Pull and start a RabbitMQ container for message queuing.
+3. Build the Node.js API container, run Prisma migrations automatically, and start the Express server on `http://localhost:3000`.
+4. Build the React frontend container using Nginx and serve it on `http://localhost:5173`.
 
 ## Usage Guide
 
@@ -45,78 +36,50 @@ npm run test
 Once the Docker containers are running, you can access the branded **HappyPets** frontend at:
 * **`http://localhost:5173`**
 
-From there, you can Register, Login, browse the faceted Product Catalog, and manage your account.
+Features available in the UI:
+- **Authentication:** Register, Login, 2FA Setup, OAuth (Google).
+- **Shopping:** Browse products, faceted search, add to cart, adjust quantities.
+- **Checkout:** Seamless Stripe-simulated checkout flow with shipping options and payment breakdown.
+- **User Dashboard:** View past orders, manage Profile & Security, save Shipping Addresses (Address Book), and securely store mock Payment Methods.
 
-### Backend API Endpoints
+### Backend API Features
 
-#### Authentication (`/api/auth`)
-*   `POST /api/auth/register`: Register a new user (requires `email`, `password`, and a mock `captchaToken: "valid_mock_token"`).
-*   `POST /api/auth/login`: Login and receive a short-lived Access Token in the payload and a long-lived Refresh Token in an HttpOnly cookie.
-*   `POST /api/auth/refresh`: Perform Refresh Token Rotation. Uses the HttpOnly cookie to issue a new Access/Refresh token pair.
-*   `POST /api/auth/logout`: Revoke the current refresh token and clear the cookie.
-*   `POST /api/auth/2fa/generate`: Generate a TOTP 2FA secret and QR code URL (Requires Auth).
-*   `POST /api/auth/2fa/verify`: Verify and enable 2FA on the account.
-*   `POST /api/auth/forgot-password`: Send a mock password reset email.
-*   `POST /api/auth/reset-password`: Reset password using the token sent to email.
-*   `GET /api/auth/google`: Initiate Google OAuth flow.
+#### Authentication & Security
+- Complete JWT-based authentication with **Refresh Token Rotation**.
+- Two-Factor Authentication (TOTP) generation and verification.
+- Password reset flows and Google OAuth integration.
+- Rate limiting and Helmet.js for secure HTTP headers.
 
-### Product Catalog (`/api/products`)
-*   `GET /api/products`: Retrieve products. Supports faceted search and pagination via query parameters:
-    *   `q`: Search by name or description.
-    *   `categoryId`, `brand`: Filter by specific category or brand.
-    *   `minPrice`, `maxPrice`: Filter by price range.
-    *   `sortBy`, `sortOrder`: Sort by attributes (e.g., `sortBy=price&sortOrder=asc`).
-    *   `page`, `limit`: Pagination controls.
-*   `GET /api/products/suggest`: Dynamic search suggestions (returns top 5 matches based on `q` param).
-*   `GET /api/products/:id`: Get detailed product information including images and attributes.
-*   `POST /api/products`: Create a new product (Requires Auth & Admin role).
-*   `GET /api/products/categories`: Get category tree.
-*   `POST /api/products/categories`: Create a new category (Requires Auth & Admin role).
+#### Product Catalog
+- Advanced filtering: Search by query, filter by category/brand, price ranges.
+- Dynamic search suggestions (type-ahead).
+- Detailed product pages including multiple images and variations.
+
+#### Cart & Checkout
+- Persistent carts for both authenticated users and guests.
+- Checkout initialization, stripe intent generation, and order processing.
+- Shipping options (Standard, Express, Overnight) mapped to costs.
+
+#### Orders & Dashboard
+- Retrieve user orders and status.
+- Address Book management endpoints.
+- Payment Methods management endpoints.
 
 ## Entity Relationship Diagram (ERD)
 
-The database schema guarantees ACID properties through PostgreSQL. Below is the Entity Relationship Diagram:
+The database schema guarantees ACID properties through PostgreSQL. Below is the core Entity Relationship Diagram:
 
 ```mermaid
 erDiagram
     USER ||--o{ REFRESH_TOKEN : has
     USER ||--o{ REVIEW : writes
+    USER ||--o{ ORDER : places
+    USER ||--o{ ADDRESS : manages
+    USER ||--o{ PAYMENT_METHOD : saves
     USER {
         String id PK
         String email
-        String passwordHash
-        String provider "local, google"
-        String providerId
-        Boolean twoFactorEnabled
-        String twoFactorSecret
-        String role "customer, admin"
-        DateTime createdAt
-        DateTime updatedAt
-    }
-
-    REFRESH_TOKEN {
-        String id PK
-        String tokenHash
-        String userId FK
-        DateTime expiresAt
-        Boolean isRevoked
-        DateTime createdAt
-    }
-    
-    REVOKED_ACCESS_TOKEN {
-        String id PK
-        String tokenHash
-        DateTime expiresAt
-        DateTime createdAt
-    }
-
-    CATEGORY ||--o{ CATEGORY : parent_child
-    CATEGORY ||--o{ PRODUCT : contains
-    CATEGORY {
-        String id PK
-        String name
-        String description
-        String parentId FK "nullable"
+        String role
     }
 
     PRODUCT ||--o{ PRODUCT_IMAGE : has
@@ -125,51 +88,34 @@ erDiagram
     PRODUCT {
         String id PK
         String name
-        String description
         Decimal price
         Int stockQuantity
-        String categoryId FK
-        String brand
-        Decimal rating
-        Int reviewCount
-        Decimal weightMetric
-        Decimal weightImperial
-        Decimal lengthMetric
-        Decimal widthMetric
-        Decimal heightMetric
-        Decimal lengthImperial
-        Decimal widthImperial
-        Decimal heightImperial
-        DateTime createdAt
-        DateTime updatedAt
     }
 
-    PRODUCT_IMAGE {
+    ORDER ||--o{ ORDER_ITEM : contains
+    ORDER ||--o{ PAYMENT : processed_with
+    ORDER {
         String id PK
-        String productId FK
-        String url
-        Boolean isPrimary
+        String status
+        Decimal totalAmount
+        Json shippingAddress
     }
-
-    PRODUCT_ATTRIBUTE {
+    
+    ADDRESS {
         String id PK
-        String productId FK
-        String name "e.g., Size, Color, Material"
-        String value
+        String addressLine1
+        Boolean isDefault
     }
-
-    REVIEW {
+    
+    PAYMENT_METHOD {
         String id PK
-        String productId FK
-        String userId FK
-        Int rating
-        String comment "nullable"
-        DateTime createdAt
-        DateTime updatedAt
+        String cardBrand
+        String last4
+        Boolean isDefault
     }
 ```
 
 ## Bonus Functionality
-*   **Refresh Token Rotation**: Implemented to drastically reduce the risk of token theft. Using a stolen refresh token immediately renders it invalid (if checked against db state appropriately).
-*   **Faceted Search & Suggestions**: Product endpoints natively support advanced filtering and dynamic type-ahead suggestions for a robust shopping experience.
-*   **Security Layers**: Helmet.js for secure HTTP headers, Rate Limiting to prevent brute-force attacks.
+* **Asynchronous Email Processing**: When an order is placed, a message is queued to RabbitMQ and processed by a background worker to send confirmation emails, ensuring the checkout API responds instantly without waiting for the email service.
+* **Refresh Token Rotation**: Implemented to drastically reduce the risk of token theft.
+* **Modern Premium UI**: The frontend utilizes glassmorphism, responsive design, and fluid animations to provide a top-tier user experience.
