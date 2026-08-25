@@ -5,6 +5,7 @@ let channel: any = null;
 
 const AMQP_URL = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
 const QUEUE_NAME = 'payment_status_updates';
+const REFUND_QUEUE = 'refund_processing';
 
 export const initAmqp = async () => {
   try {
@@ -14,8 +15,11 @@ export const initAmqp = async () => {
     await channel.assertQueue(QUEUE_NAME, {
       durable: true
     });
+    await channel.assertQueue(REFUND_QUEUE, {
+      durable: true
+    });
     
-    console.log(`[AMQP] Connected and queue '${QUEUE_NAME}' asserted`);
+    console.log(`[AMQP] Connected and queues asserted`);
   } catch (error) {
     console.error('[AMQP] Failed to connect to RabbitMQ', error);
   }
@@ -33,4 +37,11 @@ export const publishPaymentStatus = async (orderId: string, status: string, tran
   const message = JSON.stringify({ orderId, status, transactionId });
   channel.sendToQueue(QUEUE_NAME, Buffer.from(message), { persistent: true });
   console.log(`[AMQP] Published payment status for order ${orderId}: ${status}`);
+};
+
+export const publishRefundStatus = async (orderId: string, paymentTransactionId?: string) => {
+  if (!channel) return;
+  const message = JSON.stringify({ orderId, transactionId: paymentTransactionId });
+  channel.sendToQueue(REFUND_QUEUE, Buffer.from(message), { persistent: true });
+  console.log(`[AMQP] Published refund request for order ${orderId}`);
 };

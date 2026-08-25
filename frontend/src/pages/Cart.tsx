@@ -12,14 +12,27 @@ const CartPage: React.FC = () => {
   useEffect(() => {
     const fetchRecommended = async () => {
       try {
-        const res = await api.get('/products?limit=4'); // fetch a few products
-        setRecommended(res.data.products || res.data);
+        let url = '/products?limit=4';
+        if (cart && cart.items.length > 0) {
+          const categoryId = cart.items[0].product.categoryId;
+          if (categoryId) url += `&categoryId=${categoryId}`;
+        }
+        
+        const res = await api.get(url);
+        let recs = res.data.products || res.data;
+        
+        if (cart) {
+          const cartProductIds = cart.items.map(i => i.productId);
+          recs = recs.filter((p: any) => !cartProductIds.includes(p.id)).slice(0, 4);
+        }
+        
+        setRecommended(recs);
       } catch (err) {
         console.error('Failed to fetch recommended products', err);
       }
     };
     fetchRecommended();
-  }, []);
+  }, [cart]);
 
   const handleCheckout = () => {
     navigate('/checkout');

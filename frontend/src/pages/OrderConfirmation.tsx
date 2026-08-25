@@ -6,6 +6,7 @@ import { CheckCircle } from 'lucide-react';
 const OrderConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const orderId = searchParams.get('orderId');
+  const redirectStatus = searchParams.get('redirect_status'); // Stripe appends this
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -13,6 +14,9 @@ const OrderConfirmation: React.FC = () => {
     const fetchOrder = async () => {
       if (orderId) {
         try {
+          if (redirectStatus === 'succeeded') {
+            await api.post(`/orders/${orderId}/verify-payment`);
+          }
           const res = await api.get(`/orders/${orderId}`);
           setOrder(res.data);
         } catch (err) {
@@ -42,11 +46,27 @@ const OrderConfirmation: React.FC = () => {
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
       <div className="glass-panel" style={{ background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)', overflow: 'hidden' }}>
         <div style={{ padding: '3rem 2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderBottom: '1px solid var(--border)', background: 'var(--bg-muted, rgba(0,0,0,0.02))' }}>
-          <CheckCircle size={64} style={{ color: 'var(--success, #10b981)', marginBottom: '1rem' }} />
-          <h3 style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--text-h)', margin: '0 0 0.5rem 0' }}>Thank you for your order!</h3>
-          <p style={{ color: 'var(--text-muted, #6b7280)', margin: 0 }}>
-            Order #{order.id} has been placed. We've sent a confirmation email.
-          </p>
+          {redirectStatus === 'failed' || order?.status === 'Payment Failed' ? (
+            <>
+              <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--error, #ef4444)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: '1rem', fontSize: '2rem', fontWeight: 'bold' }}>!</div>
+              <h3 style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--error, #ef4444)', margin: '0 0 0.5rem 0' }}>Payment Failed</h3>
+              <p style={{ color: 'var(--text-muted, #6b7280)', margin: 0 }}>
+                Unfortunately, your payment could not be processed. Please try again.
+              </p>
+              <Link to="/cart" className="btn" style={{ marginTop: '1.5rem', textDecoration: 'none' }}>Return to Cart</Link>
+            </>
+          ) : (
+            <>
+              <CheckCircle size={64} style={{ color: 'var(--success, #10b981)', marginBottom: '1rem' }} />
+              <h3 style={{ fontSize: '2rem', fontWeight: 600, color: 'var(--text-h)', margin: '0 0 0.5rem 0' }}>Thank you for your order!</h3>
+              <p style={{ color: 'var(--text-muted, #6b7280)', margin: 0 }}>
+                Order #{order.id} has been placed. We've sent a confirmation email.
+              </p>
+              <div style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'var(--success-muted, rgba(16, 185, 129, 0.1))', color: 'var(--success, #10b981)', borderRadius: '8px', fontWeight: 600 }}>
+                Status: {order.status}
+              </div>
+            </>
+          )}
         </div>
         
         <div style={{ padding: '2rem' }}>

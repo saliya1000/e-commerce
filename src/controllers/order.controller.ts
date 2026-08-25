@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
 import Stripe from 'stripe';
+import { publishPaymentStatus } from '../utils/amqp';
+import { publishRefundStatus } from '../utils/amqp';
+import { calculateTotal } from '../utils/cartCalculations';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2022-11-15' as any, // Cast to any to avoid strict version type mismatches
@@ -10,11 +13,15 @@ export const checkout = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
     const { guestId, shippingAddress, shippingMethod } = req.body;
+    
+    console.log(`[CHECKOUT] userId: ${userId}, guestId: ${guestId}`);
 
     const cart = await prisma.cart.findUnique({
       where: userId ? { userId } : { guestId },
       include: { items: { include: { product: true } } }
     });
+
+    console.log(`[CHECKOUT] Cart found:`, cart ? `Yes, with ${cart.items.length} items` : `No`);
 
     if (!cart || cart.items.length === 0) {
       res.status(400).json({ message: 'Cart is empty' });
@@ -32,12 +39,7 @@ export const checkout = async (req: Request, res: Response) => {
     }
 
     // Calculate subtotal
-    let subtotalAmount = 0;
-    cart.items.forEach(item => {
-      subtotalAmount += Number(item.product.price) * item.quantity;
-    });
-
-    const totalAmount = subtotalAmount + shippingCost;
+    const totalAmount = calculateTotal(cart.items, shippingCost);
 
     // Create Order
     const order = await prisma.order.create({
@@ -59,14 +61,36 @@ export const checkout = async (req: Request, res: Response) => {
       }
     });
 
-    // Clear cart
-    await prisma.cartItem.deleteMany({ where: { cartId: cart.id } });
+    // Do NOT clear the cart here. 
+    // The cart should only be cleared when payment is successful (handled in orderWorker).
+
+    // Handle Stripe Customer for saved cards
+    let stripeCustomerId: string | undefined;
+    if (userId) {
+      const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (dbUser) {
+        if (dbUser.stripeCustomerId) {
+          stripeCustomerId = dbUser.stripeCustomerId;
+        } else {
+          const customer = await stripe.customers.create({
+            email: dbUser.email,
+            name: shippingAddress.name || undefined
+          });
+          stripeCustomerId = customer.id;
+          await prisma.user.update({
+            where: { id: userId },
+            data: { stripeCustomerId: customer.id }
+          });
+        }
+      }
+    }
 
     // Create Stripe PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(totalAmount * 100), // in cents
       currency: 'usd',
       metadata: { orderId: order.id },
+      ...(stripeCustomerId ? { customer: stripeCustomerId, setup_future_usage: 'on_session' } : {})
     });
 
     // Create Payment record
@@ -98,8 +122,24 @@ export const getOrders = async (req: Request, res: Response) => {
       return;
     }
 
+    const { status, days } = req.query;
+    let whereClause: any = { userId };
+    
+    if (status && status !== 'All') {
+      whereClause.status = status;
+    }
+    
+    if (days && days !== 'All') {
+      const daysInt = parseInt(days as string, 10);
+      if (!isNaN(daysInt)) {
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - daysInt);
+        whereClause.createdAt = { gte: dateLimit };
+      }
+    }
+
     const orders = await prisma.order.findMany({
-      where: { userId },
+      where: whereClause,
       include: { items: { include: { product: true } } },
       orderBy: { createdAt: 'desc' }
     });
@@ -108,6 +148,31 @@ export const getOrders = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to fetch orders' });
+  }
+};
+
+export const verifyPayment = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const order = await prisma.order.findUnique({ where: { id }, include: { payments: true } }) as any;
+    if (!order || !order.payments) {
+      res.status(404).json({ message: 'Order not found' });
+      return;
+    }
+    
+    if (order.status === 'Pending Payment') {
+      const paymentIntent = await stripe.paymentIntents.retrieve(order.payments[0]?.transactionId || '');
+      if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // Update payment and publish to RabbitMQ to clear cart and send email
+        await prisma.payment.updateMany({ where: { orderId: id }, data: { status: 'Succeeded' } });
+        await publishPaymentStatus(order.id, 'succeeded', paymentIntent.id);
+        res.json({ status: 'succeeded' });
+        return;
+      }
+    }
+    res.json({ status: order.status });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to verify payment', error: error.message });
   }
 };
 
@@ -134,24 +199,41 @@ export const getOrder = async (req: Request, res: Response) => {
 export const cancelOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const order = await prisma.order.findUnique({ where: { id: id as string } });
+    const order = await prisma.order.findUnique({ 
+      where: { id: id as string },
+      include: { payments: true }
+    });
 
     if (!order) {
       res.status(404).json({ message: 'Order not found' });
       return;
     }
 
-    if (order.status !== 'Pending Payment') {
-      res.status(400).json({ message: 'Cannot cancel an order that has already been processed' });
+    if (order.status === 'Pending Payment') {
+      await prisma.order.update({
+        where: { id: id as string },
+        data: { status: 'Cancelled' }
+      });
+      res.json({ success: true, message: 'Order cancelled' });
       return;
     }
 
-    await prisma.order.update({
-      where: { id: id as string },
-      data: { status: 'Cancelled' }
-    });
+    if (order.status === 'Payment Successful') {
+      await prisma.order.update({
+        where: { id: id as string },
+        data: { status: 'Refund Processing' }
+      });
+      
+      const payment = order.payments.find(p => p.status === 'Succeeded');
+      const transactionId = payment?.transactionId || undefined;
+      
+      await publishRefundStatus(order.id, transactionId);
+      
+      res.json({ success: true, message: 'Refund initiated' });
+      return;
+    }
 
-    res.json({ success: true, message: 'Order cancelled' });
+    res.status(400).json({ message: 'Cannot cancel an order that has already shipped or been processed' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to cancel order' });

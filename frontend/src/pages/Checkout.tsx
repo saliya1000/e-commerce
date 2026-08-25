@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useAuth } from '../context/AuthContext';
+import { Trash2, Plus, Minus, CheckCircle, ShieldCheck } from 'lucide-react';
 
-// IMPORTANT: In a real app, this should be in .env. We use a placeholder here assuming the user will replace it or it's provided in env.
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_dummy');
 
-const CheckoutForm = ({ orderId }: { orderId: string }) => {
+const CheckoutForm = ({ orderId, onCancel }: { orderId: string, onCancel: () => void }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -18,12 +18,9 @@ const CheckoutForm = ({ orderId }: { orderId: string }) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
-      return;
-    }
+    if (!stripe || !elements) return;
 
     setProcessing(true);
-
     const result = await stripe.confirmPayment({
       elements,
       confirmParams: {
@@ -35,32 +32,33 @@ const CheckoutForm = ({ orderId }: { orderId: string }) => {
       setError(result.error.message || 'An unexpected error occurred.');
       setProcessing(false);
     }
-    // If successful, Stripe will redirect to the return_url.
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem' }}>
       <PaymentElement />
-      {error && <div style={{ color: 'var(--error, #ef4444)', marginTop: '0.5rem', fontSize: '0.875rem' }}>{error}</div>}
-      <button
-        disabled={!stripe || processing}
-        className="btn"
-        style={{ width: '100%', marginTop: '1.5rem', padding: '1rem', fontSize: '1.1rem' }}
-      >
-        {processing ? 'Processing...' : 'Pay Now'}
-      </button>
+      {error && <div style={{ color: 'var(--error, #ef4444)', marginTop: '1rem', fontSize: '0.875rem', padding: '0.75rem', background: '#FEF2F2', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><ShieldCheck size={16} />{error}</div>}
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+        <button type="button" onClick={onCancel} disabled={processing} className="btn btn-outline" style={{ flex: 1, padding: '1rem', fontSize: '1.1rem' }}>
+          Back
+        </button>
+        <button disabled={!stripe || processing} className="btn" style={{ flex: 2, padding: '1rem', fontSize: '1.1rem' }}>
+          {processing ? 'Processing Securely...' : 'Place Order & Pay'}
+        </button>
+      </div>
     </form>
   );
 };
 
 const Checkout: React.FC = () => {
-  const { cart, totalAmount } = useCart();
+  const { cart, totalAmount, updateQuantity, removeFromCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  const [step, setStep] = useState(1);
   const [clientSecret, setClientSecret] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [isInitializingPayment, setIsInitializingPayment] = useState(false);
+  const isSubmitting = React.useRef(false);
   
   const [shippingAddress, setShippingAddress] = useState({
     name: '',
@@ -70,6 +68,27 @@ const Checkout: React.FC = () => {
     postal_code: '',
     country: 'US',
   });
+
+  const [addresses, setAddresses] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user) {
+      api.get('/addresses').then(res => {
+        setAddresses(res.data);
+        const defaultAddr = res.data.find((a: any) => a.isDefault) || res.data[0];
+        if (defaultAddr) {
+           setShippingAddress({
+             name: `${defaultAddr.firstName} ${defaultAddr.lastName}`,
+             email: user.email || '',
+             line1: defaultAddr.addressLine1,
+             city: defaultAddr.city,
+             postal_code: defaultAddr.postalCode,
+             country: defaultAddr.country
+           });
+        }
+      }).catch(err => console.error(err));
+    }
+  }, [user]);
 
   const [shippingMethod, setShippingMethod] = useState('standard');
   const shippingCost = shippingMethod === 'express' ? 15.00 : (shippingMethod === 'overnight' ? 25.00 : 5.00);
@@ -81,13 +100,11 @@ const Checkout: React.FC = () => {
     }
   }, [cart, navigate]);
 
-  const handleAddressSubmit = (e: React.FormEvent) => {
+  const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(2);
-  };
-
-  const handleShippingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
+    setIsInitializingPayment(true);
     try {
       const guestId = localStorage.getItem('guestId');
       const res = await api.post('/orders/checkout', {
@@ -97,10 +114,12 @@ const Checkout: React.FC = () => {
       });
       setClientSecret(res.data.clientSecret);
       setOrderId(res.data.orderId);
-      setStep(3);
     } catch (err: any) {
       console.error('Checkout failed', err);
       alert('Failed to initiate checkout. ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+    } finally {
+      setIsInitializingPayment(false);
+      isSubmitting.current = false;
     }
   };
 
@@ -108,141 +127,223 @@ const Checkout: React.FC = () => {
     setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
   };
 
+  const handleAddressSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const addr = addresses.find(a => a.id === e.target.value);
+    if (addr) {
+      setShippingAddress({
+        name: `${addr.firstName} ${addr.lastName}`,
+        email: user?.email || '',
+        line1: addr.addressLine1,
+        city: addr.city,
+        postal_code: addr.postalCode,
+        country: addr.country
+      });
+    }
+  };
+
+  if (!cart) return null;
+
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-      <h1 style={{ textAlign: 'center', marginBottom: '2.5rem', fontSize: '2.5rem' }}>Checkout</h1>
-      
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', justifyContent: 'center' }}>
-        <div style={{ fontWeight: step >= 1 ? 700 : 400, color: step >= 1 ? 'var(--primary)' : 'var(--text-muted)' }}>1. Shipping Address</div>
-        <div style={{ color: 'var(--text-muted)' }}>&gt;</div>
-        <div style={{ fontWeight: step >= 2 ? 700 : 400, color: step >= 2 ? 'var(--primary)' : 'var(--text-muted)' }}>2. Shipping Method</div>
-        <div style={{ color: 'var(--text-muted)' }}>&gt;</div>
-        <div style={{ fontWeight: step >= 3 ? 700 : 400, color: step >= 3 ? 'var(--primary)' : 'var(--text-muted)' }}>3. Payment</div>
-      </div>
-
-      <div className="glass-panel" style={{ padding: '2.5rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-        <div style={{ padding: '0' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: '3rem', alignItems: 'start' }} className="checkout-grid">
+        
+        {/* Left Column: Form & Payment */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem' }}>Checkout</h1>
           
-          {step === 1 && (
-            <div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-h)', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>Shipping Information</h3>
-              <form onSubmit={handleAddressSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                  <div className="input-group">
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem', color: 'var(--text-h)', fontWeight: 500 }}>Full Name</label>
-                    <input required type="text" name="name" value={shippingAddress.name} onChange={handleInputChange} style={{ width: '100%' }} />
-                  </div>
-                  <div className="input-group">
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem', color: 'var(--text-h)', fontWeight: 500 }}>Email Address</label>
-                    <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} style={{ width: '100%' }} />
-                  </div>
-                </div>
-                <div className="input-group">
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem', color: 'var(--text-h)', fontWeight: 500 }}>Address Line 1</label>
-                  <input required type="text" name="line1" value={shippingAddress.line1} onChange={handleInputChange} style={{ width: '100%' }} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem' }}>
-                  <div className="input-group">
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem', color: 'var(--text-h)', fontWeight: 500 }}>City</label>
-                    <input required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} style={{ width: '100%' }} />
-                  </div>
-                  <div className="input-group">
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem', color: 'var(--text-h)', fontWeight: 500 }}>Postal Code</label>
-                    <input required type="text" name="postal_code" value={shippingAddress.postal_code} onChange={handleInputChange} style={{ width: '100%' }} />
-                  </div>
-                  <div className="input-group">
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.95rem', color: 'var(--text-h)', fontWeight: 500 }}>Country</label>
-                    <input required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} style={{ width: '100%' }} />
-                  </div>
-                </div>
+          {/* Main Card */}
+          <div className="glass-panel" style={{ padding: '2.5rem', background: '#FDFBF7', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)' }}>
+            
+            {/* When clientSecret is absent, show Form */}
+            {!clientSecret ? (
+              <form onSubmit={handleContinueToPayment} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', marginTop: '2rem', paddingTop: '1.5rem' }}>
-                  <button type="button" className="btn btn-outline" onClick={() => navigate('/cart')} style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', borderRadius: '8px', width: 'auto' }}>
-                    Back to Cart
-                  </button>
-                  <button type="submit" className="btn" style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', borderRadius: '8px', width: 'auto' }}>
-                    Continue to Shipping
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+                {/* 1. Contact & Shipping Info */}
+                <section>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#20B2AA', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', background: '#20B2AA', color: 'white', borderRadius: '50%', fontSize: '1rem' }}>1</span>
+                    Contact & Shipping
+                  </h3>
+                  
+                  {addresses.length > 0 && (
+                    <div className="input-group" style={{ marginBottom: '1.5rem' }}>
+                      <label>Saved Addresses</label>
+                      <select onChange={handleAddressSelect} style={{ width: '100%', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                        <option value="">-- Choose a saved address --</option>
+                        {addresses.map(a => (
+                          <option key={a.id} value={a.id}>
+                            {a.firstName} {a.lastName} - {a.addressLine1}, {a.city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
-          {step === 2 && (
-            <div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-h)', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>Shipping Method</h3>
-              <form onSubmit={handleShippingSubmit}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: shippingMethod === 'standard' ? 'var(--bg-muted)' : 'transparent' }}>
-                    <input type="radio" name="shippingMethod" value="standard" checked={shippingMethod === 'standard'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>Standard Shipping</div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>3-5 business days</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                    <div className="input-group">
+                      <label>Full Name</label>
+                      <input required type="text" name="name" value={shippingAddress.name} onChange={handleInputChange} placeholder="John Doe" />
                     </div>
-                    <div style={{ fontWeight: 600 }}>$5.00</div>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: shippingMethod === 'express' ? 'var(--bg-muted)' : 'transparent' }}>
-                    <input type="radio" name="shippingMethod" value="express" checked={shippingMethod === 'express'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>Express Shipping</div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>1-2 business days</div>
+                    <div className="input-group">
+                      <label>Email Address</label>
+                      <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" />
                     </div>
-                    <div style={{ fontWeight: 600 }}>$15.00</div>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: '8px', cursor: 'pointer', background: shippingMethod === 'overnight' ? 'var(--bg-muted)' : 'transparent' }}>
-                    <input type="radio" name="shippingMethod" value="overnight" checked={shippingMethod === 'overnight'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem' }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-h)' }}>Overnight Shipping</div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Next business day</div>
+                  </div>
+                  <div className="input-group" style={{ marginTop: '1.25rem' }}>
+                    <label>Address</label>
+                    <input required type="text" name="line1" value={shippingAddress.line1} onChange={handleInputChange} placeholder="123 Happy St" />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
+                    <div className="input-group">
+                      <label>City</label>
+                      <input required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} />
                     </div>
-                    <div style={{ fontWeight: 600 }}>$25.00</div>
-                  </label>
-                </div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', marginTop: '2rem', paddingTop: '1.5rem' }}>
-                  <button type="button" className="btn btn-outline" onClick={() => setStep(1)} style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', borderRadius: '8px', width: 'auto' }}>
-                    Back
-                  </button>
-                  <button type="submit" className="btn" style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', borderRadius: '8px', width: 'auto' }}>
-                    Continue to Payment
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
+                    <div className="input-group">
+                      <label>Postal Code</label>
+                      <input required type="text" name="postal_code" value={shippingAddress.postal_code} onChange={handleInputChange} />
+                    </div>
+                    <div className="input-group">
+                      <label>Country</label>
+                      <input required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} />
+                    </div>
+                  </div>
+                </section>
 
-          {step === 3 && clientSecret && (
-            <div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-h)', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>Payment Details</h3>
-              <div style={{ marginBottom: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--text-muted)' }}>
-                  <span>Subtotal:</span>
-                  <span>${totalAmount.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--text-muted)' }}>
-                  <span style={{ textTransform: 'capitalize' }}>Shipping ({shippingMethod}):</span>
-                  <span>${shippingCost.toFixed(2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', color: 'var(--text-h)', fontWeight: 700, marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                  <span>Total to pay:</span>
-                  <span style={{ color: 'var(--accent)' }}>${finalTotal.toFixed(2)}</span>
-                </div>
-              </div>
-              <div style={{ background: 'var(--bg-muted)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <Elements stripe={stripePromise} options={{ clientSecret }}>
-                  <CheckoutForm orderId={orderId} />
-                </Elements>
-              </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border)', marginTop: '2rem', paddingTop: '1.5rem' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setStep(2)} style={{ padding: '0.75rem 1.5rem', fontSize: '1rem', borderRadius: '8px', width: 'auto' }}>
-                  Back
+                <hr style={{ borderTop: '1px solid var(--border-color)' }} />
+
+                {/* 2. Shipping Method */}
+                <section>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#20B2AA', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', background: '#20B2AA', color: 'white', borderRadius: '50%', fontSize: '1rem' }}>2</span>
+                    Shipping Method
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '2px solid', borderColor: shippingMethod === 'standard' ? '#FF7F50' : 'var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: shippingMethod === 'standard' ? '#FFF5F2' : '#FFF', transition: 'all 0.2s' }}>
+                      <input type="radio" name="shippingMethod" value="standard" checked={shippingMethod === 'standard'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Standard Shipping</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>3-5 business days</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>$5.00</div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '2px solid', borderColor: shippingMethod === 'express' ? '#FF7F50' : 'var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: shippingMethod === 'express' ? '#FFF5F2' : '#FFF', transition: 'all 0.2s' }}>
+                      <input type="radio" name="shippingMethod" value="express" checked={shippingMethod === 'express'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Express Shipping</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>1-2 business days</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>$15.00</div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '2px solid', borderColor: shippingMethod === 'overnight' ? '#FF7F50' : 'var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: shippingMethod === 'overnight' ? '#FFF5F2' : '#FFF', transition: 'all 0.2s' }}>
+                      <input type="radio" name="shippingMethod" value="overnight" checked={shippingMethod === 'overnight'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Overnight Shipping</div>
+                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Next business day</div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>$25.00</div>
+                    </label>
+                  </div>
+                </section>
+
+                <button type="submit" className="btn" disabled={isInitializingPayment} style={{ padding: '1.25rem', fontSize: '1.1rem', marginTop: '1rem' }}>
+                  {isInitializingPayment ? 'Preparing Secure Payment...' : 'Continue to Payment'}
                 </button>
+              </form>
+            ) : (
+              /* When clientSecret is present, show Payment Element */
+              <div style={{ animation: 'fadeUp 0.4s ease' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <CheckCircle size={32} color="#38A169" />
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Information Confirmed</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0 }}>Your shipping details are saved.</p>
+                  </div>
+                </div>
+                
+                <hr style={{ borderTop: '1px solid var(--border-color)', marginBottom: '2.5rem' }} />
+
+                <section>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#20B2AA', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', background: '#20B2AA', color: 'white', borderRadius: '50%', fontSize: '1rem' }}>3</span>
+                    Secure Payment
+                  </h3>
+                  
+                  <div style={{ background: 'white', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
+                    <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'stripe', variables: { colorPrimary: '#FF7F50', borderRadius: '8px' } } }}>
+                      <CheckoutForm orderId={orderId} onCancel={() => setClientSecret('')} />
+                    </Elements>
+                  </div>
+                </section>
+              </div>
+            )}
+            
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Order Summary */}
+        <div style={{ position: 'sticky', top: '100px' }}>
+          <div className="glass-panel" style={{ padding: '2rem', background: '#FFFFFF', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)' }}>
+            <h2 style={{ marginBottom: '1.5rem', fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              Order Summary
+              <span style={{ background: '#FFF5F2', color: '#FF7F50', padding: '4px 12px', borderRadius: '999px', fontSize: '0.85rem' }}>
+                {cart.items.reduce((a, c) => a + c.quantity, 0)} Items
+              </span>
+            </h2>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginBottom: '2rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+              {cart.items.map((item) => (
+                <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', paddingBottom: '1rem', borderBottom: '1px dashed #E2E8F0' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '12px', overflow: 'hidden', background: '#F3F0E9', flexShrink: 0 }}>
+                    <img
+                      src={item.product.images?.[0]?.url || 'https://via.placeholder.com/64'}
+                      alt={item.product.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Link to={`/products/${item.productId}`} style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-main)', textDecoration: 'none', display: 'block', marginBottom: '4px' }}>
+                      {item.product.name}
+                    </Link>
+                    <p style={{ fontSize: '1rem', fontWeight: 800, color: '#FF7F50', margin: '0 0 0.5rem 0' }}>${Number(item.product.price).toFixed(2)}</p>
+                    
+                    {/* Editable Cart Controls */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', background: '#FDFBF7' }}>
+                        <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={clientSecret !== ''} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: clientSecret ? 'not-allowed' : 'pointer', color: 'var(--text-muted)' }}>
+                          <Minus size={14} />
+                        </button>
+                        <span style={{ padding: '4px 8px', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem', minWidth: '30px', textAlign: 'center' }}>{item.quantity}</span>
+                        <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} disabled={clientSecret !== ''} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: clientSecret ? 'not-allowed' : 'pointer', color: 'var(--text-muted)' }}>
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                      <button type="button" onClick={() => removeFromCart(item.id)} disabled={clientSecret !== ''} style={{ background: 'none', border: 'none', color: '#E53E3E', cursor: clientSecret ? 'not-allowed' : 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <Trash2 size={14} /> Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: '#FDFBF7', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                <span>Subtotal</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>${totalAmount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                <span>Shipping ({shippingMethod})</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>${shippingCost.toFixed(2)}</span>
+              </div>
+              <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-main)' }}>Total</span>
+                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FF7F50' }}>${finalTotal.toFixed(2)}</span>
               </div>
             </div>
-          )}
-
+          </div>
         </div>
+
       </div>
     </div>
   );

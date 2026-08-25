@@ -8,16 +8,16 @@ export const getCart = async (req: Request, res: Response) => {
 
     let cart;
     if (userId) {
-      cart = await prisma.cart.findUnique({ where: { userId }, include: { items: { include: { product: true } } } });
+      cart = await prisma.cart.findUnique({ where: { userId }, include: { items: { include: { product: { include: { images: true } } } } } });
     } else if (guestId) {
-      cart = await prisma.cart.findUnique({ where: { guestId }, include: { items: { include: { product: true } } } });
+      cart = await prisma.cart.findUnique({ where: { guestId }, include: { items: { include: { product: { include: { images: true } } } } } });
     }
 
     if (!cart) {
       // Create empty cart
       cart = await prisma.cart.create({
         data: userId ? { userId } : { guestId },
-        include: { items: { include: { product: true } } }
+        include: { items: { include: { product: { include: { images: true } } } } }
       });
     }
 
@@ -66,7 +66,7 @@ export const addToCart = async (req: Request, res: Response) => {
 
     const updatedCart = await prisma.cart.findUnique({
       where: { id: cart.id },
-      include: { items: { include: { product: true } } }
+      include: { items: { include: { product: { include: { images: true } } } } }
     });
 
     res.json(updatedCart);

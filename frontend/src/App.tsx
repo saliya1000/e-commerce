@@ -15,6 +15,7 @@ import OAuthCallback from './pages/OAuthCallback';
 import CartPage from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
+import OrderDetail from './pages/OrderDetail';
 
 import './styles/index.css';
 
@@ -49,6 +50,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Layout><Account /></Layout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/account/orders/:id" 
+        element={
+          <ProtectedRoute>
+            <Layout><OrderDetail /></Layout>
           </ProtectedRoute>
         } 
       />

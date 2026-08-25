@@ -21,6 +21,10 @@ const Account: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   
+  // Order filters
+  const [orderStatusFilter, setOrderStatusFilter] = useState('All');
+  const [orderDaysFilter, setOrderDaysFilter] = useState('All');
+  
   const [addresses, setAddresses] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -29,7 +33,11 @@ const Account: React.FC = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await api.get('/orders');
+        const queryParams = new URLSearchParams();
+        if (orderStatusFilter !== 'All') queryParams.append('status', orderStatusFilter);
+        if (orderDaysFilter !== 'All') queryParams.append('days', orderDaysFilter);
+        
+        const res = await api.get(`/orders?${queryParams.toString()}`);
         setOrders(res.data);
       } catch (err) {
         console.error('Failed to fetch orders', err);
@@ -54,12 +62,17 @@ const Account: React.FC = () => {
     if (activeTab === 'orders' || activeTab === 'dashboard') fetchOrders();
     if (activeTab === 'address') fetchAddresses();
     if (activeTab === 'payments') fetchPaymentMethods();
-  }, [activeTab]);
+  }, [activeTab, orderStatusFilter, orderDaysFilter]);
 
   const handleCancelOrder = async (orderId: string) => {
     try {
       await api.post(`/orders/${orderId}/cancel`);
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status: 'Cancelled' } : o));
+      // Re-fetch orders to get updated statuses instead of manual array mapping
+      const queryParams = new URLSearchParams();
+      if (orderStatusFilter !== 'All') queryParams.append('status', orderStatusFilter);
+      if (orderDaysFilter !== 'All') queryParams.append('days', orderDaysFilter);
+      const res = await api.get(`/orders?${queryParams.toString()}`);
+      setOrders(res.data);
     } catch (err) {
       console.error('Failed to cancel order', err);
       alert('Cannot cancel this order.');
@@ -388,9 +401,35 @@ const Account: React.FC = () => {
 
   const renderOrders = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Package size={32} color="var(--primary)" />
-        <h1 style={{ fontSize: '2rem', margin: 0 }}>My Orders</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <Package size={32} color="var(--primary)" />
+          <h1 style={{ fontSize: '2rem', margin: 0 }}>My Orders</h1>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <select 
+            value={orderStatusFilter} 
+            onChange={e => setOrderStatusFilter(e.target.value)}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
+          >
+            <option value="All">All Statuses</option>
+            <option value="Pending Payment">Pending Payment</option>
+            <option value="Payment Successful">Payment Successful</option>
+            <option value="Refund Processing">Refund Processing</option>
+            <option value="Refunded">Refunded</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <select 
+            value={orderDaysFilter} 
+            onChange={e => setOrderDaysFilter(e.target.value)}
+            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
+          >
+            <option value="All">All Time</option>
+            <option value="30">Last 30 Days</option>
+            <option value="180">Last 6 Months</option>
+          </select>
+        </div>
       </div>
       
       <div className="glass-panel" style={{ padding: '2rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)' }}>
@@ -431,13 +470,30 @@ const Account: React.FC = () => {
                       </span>
                     )}
                   </div>
-                  {order.status === 'Pending Payment' && (
+                  {order.status === 'Pending Payment' || order.status === 'Payment Successful' ? (
+                    <div style={{ display: 'flex', gap: '1rem' }}>
+                      <button 
+                        onClick={() => handleCancelOrder(order.id)}
+                        className="btn btn-outline"
+                        style={{ borderColor: 'var(--error)', color: 'var(--error)', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                      >
+                        Cancel Order
+                      </button>
+                      <button 
+                        onClick={() => navigate(`/account/orders/${order.id}`)}
+                        className="btn"
+                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  ) : (
                     <button 
-                      onClick={() => handleCancelOrder(order.id)}
-                      className="btn btn-outline"
-                      style={{ borderColor: 'var(--error)', color: 'var(--error)', padding: '0.5rem 1rem', fontSize: '0.9rem' }}
+                      onClick={() => navigate(`/account/orders/${order.id}`)}
+                      className="btn"
+                      style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
                     >
-                      Cancel Order
+                      View Details
                     </button>
                   )}
                 </div>

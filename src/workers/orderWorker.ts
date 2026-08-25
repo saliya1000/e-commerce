@@ -54,6 +54,17 @@ export const startOrderWorker = async () => {
             });
           }
 
+          // 2.5 Clear the user's cart
+          if (order.userId) {
+            await prisma.cartItem.deleteMany({
+              where: { cart: { userId: order.userId } }
+            });
+          } else if (order.guestId) {
+            await prisma.cartItem.deleteMany({
+              where: { cart: { guestId: order.guestId } }
+            });
+          }
+
           // 3. Send Confirmation Email
           if (customerEmail) {
             await sendEmail(
