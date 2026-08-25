@@ -1,0 +1,93 @@
+import { getChannel } from '../utils/amqp';
+import prisma from '../prisma';
+import { sendEmail } from '../utils/mailer';
+
+const QUEUE_NAME = 'payment_status_updates';
+
+export const startOrderWorker = async () => {
+  const channel = getChannel();
+  
+  console.log(`[ORDER WORKER] Waiting for messages in ${QUEUE_NAME}...`);
+  
+  channel.consume(QUEUE_NAME, async (msg: any) => {
+    if (msg !== null) {
+      const content = msg.content.toString();
+      console.log(`[ORDER WORKER] Received message: ${content}`);
+      
+      try {
+        const { orderId, status, transactionId } = JSON.parse(content);
+        
+        const order = await prisma.order.findUnique({
+          where: { id: orderId },
+          include: { 
+            items: { include: { product: true } },
+            user: true
+          }
+        });
+        
+        if (!order) {
+          console.error(`[ORDER WORKER] Order ${orderId} not found`);
+          channel.ack(msg);
+          return;
+        }
+
+        // Get email either from registered user or shipping address
+        const shippingAddress: any = order.shippingAddress || {};
+        const customerEmail = order.user?.email || shippingAddress.email;
+        
+        if (status === 'succeeded') {
+          // 1. Update Order Status
+          await prisma.order.update({
+            where: { id: orderId },
+            data: { status: 'Payment Successful' }
+          });
+          
+          // 2. Decrement Stock within a transaction if possible, or sequentially
+          for (const item of order.items) {
+            await prisma.product.update({
+              where: { id: item.productId },
+              data: {
+                stockQuantity: {
+                  decrement: item.quantity
+                }
+              }
+            });
+          }
+
+          // 3. Send Confirmation Email
+          if (customerEmail) {
+            await sendEmail(
+              customerEmail,
+              `Order Confirmation - ${orderId}`,
+              `Your payment was successful and your order ${orderId} has been placed.`,
+              `<h1>Order Confirmation</h1><p>Your payment was successful. Order ID: ${orderId}</p>`
+            );
+          }
+          
+        } else if (status === 'failed') {
+          // Update Order Status
+          await prisma.order.update({
+            where: { id: orderId },
+            data: { status: 'Payment Failed' }
+          });
+          
+          // Send Failure Email
+          if (customerEmail) {
+            await sendEmail(
+              customerEmail,
+              `Payment Failed - Order ${orderId}`,
+              `Your payment for order ${orderId} failed. Please try again.`,
+              `<h1>Payment Failed</h1><p>Your payment for order ${orderId} failed.</p>`
+            );
+          }
+        }
+        
+        channel.ack(msg);
+      } catch (err) {
+        console.error(`[ORDER WORKER] Error processing message:`, err);
+        // Nack to requeue or handle failure
+        channel.nack(msg, false, false); // No requeue for now to prevent loops on bad JSON
+      }
+    }
+  });
+};
