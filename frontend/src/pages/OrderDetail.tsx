@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ArrowLeft, Package, CheckCircle, Truck, RefreshCw, XCircle, Clock } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, Truck, XCircle } from 'lucide-react';
 
 const OrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();

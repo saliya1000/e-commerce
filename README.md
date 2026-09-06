@@ -29,6 +29,12 @@ This single command will:
 2. Pull and start a RabbitMQ container for message queuing.
 3. Build the Node.js API container, run Prisma migrations automatically, and start the Express server on `http://localhost:3000`.
 4. Build the React frontend container using Nginx and serve it on `http://localhost:5173`.
+5. Start the Mailhog container for local email testing.
+
+## Local Email Testing
+All outgoing emails (Order Confirmations, Payment Statuses, etc.) are intercepted locally by **Mailhog** so they don't actually send to real inboxes during testing. 
+To view intercepted emails, simply open a new browser tab and navigate to the Mailhog Web UI:
+* **`http://localhost:8025`**
 
 ## Usage Guide
 

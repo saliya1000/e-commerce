@@ -1,6 +1,7 @@
 import { getChannel } from '../utils/amqp';
 import prisma from '../prisma';
 import { sendEmail } from '../utils/mailer';
+import { generateOrderEmailHtml, generatePaymentFailedEmailHtml } from '../utils/emailTemplates';
 
 const QUEUE_NAME = 'payment_status_updates';
 
@@ -15,7 +16,7 @@ export const startOrderWorker = async () => {
       console.log(`[ORDER WORKER] Received message: ${content}`);
       
       try {
-        const { orderId, status, transactionId } = JSON.parse(content);
+        const { orderId, event, transactionId } = JSON.parse(content);
         
         const order = await prisma.order.findUnique({
           where: { id: orderId },
@@ -35,7 +36,7 @@ export const startOrderWorker = async () => {
         const shippingAddress: any = order.shippingAddress || {};
         const customerEmail = order.user?.email || shippingAddress.email;
         
-        if (status === 'succeeded') {
+        if (event === 'PAYMENT_SUCCESS') {
           // 1. Update Order Status
           await prisma.order.update({
             where: { id: orderId },
@@ -67,15 +68,16 @@ export const startOrderWorker = async () => {
 
           // 3. Send Confirmation Email
           if (customerEmail) {
+            const htmlContent = generateOrderEmailHtml(order);
             await sendEmail(
               customerEmail,
               `Order Confirmation - ${orderId}`,
               `Your payment was successful and your order ${orderId} has been placed.`,
-              `<h1>Order Confirmation</h1><p>Your payment was successful. Order ID: ${orderId}</p>`
+              htmlContent
             );
           }
           
-        } else if (status === 'failed') {
+        } else if (event === 'PAYMENT_FAILED') {
           // Update Order Status
           await prisma.order.update({
             where: { id: orderId },
@@ -84,11 +86,12 @@ export const startOrderWorker = async () => {
           
           // Send Failure Email
           if (customerEmail) {
+            const htmlContent = generatePaymentFailedEmailHtml(order);
             await sendEmail(
               customerEmail,
               `Payment Failed - Order ${orderId}`,
               `Your payment for order ${orderId} failed. Please try again.`,
-              `<h1>Payment Failed</h1><p>Your payment for order ${orderId} failed.</p>`
+              htmlContent
             );
           }
         }

@@ -114,7 +114,7 @@ const Account: React.FC = () => {
   const handleSaveAddress = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries());
+    const data = Object.fromEntries((formData as any).entries());
     const isDefault = formData.get('isDefault') === 'on';
 
     try {
@@ -143,7 +143,7 @@ const Account: React.FC = () => {
   const handleSavePaymentMethod = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries());
+    const data = Object.fromEntries((formData as any).entries());
     const isDefault = formData.get('isDefault') === 'on';
     
     // Convert cardNumber to last4

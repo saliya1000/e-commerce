@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { publishPaymentStatus } from '../utils/amqp';
 import { publishRefundStatus } from '../utils/amqp';
 import { calculateTotal } from '../utils/cartCalculations';
+import { AddressValidatorService } from '../utils/AddressValidatorService';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2022-11-15' as any, // Cast to any to avoid strict version type mismatches
@@ -25,6 +26,13 @@ export const checkout = async (req: Request, res: Response) => {
 
     if (!cart || cart.items.length === 0) {
       res.status(400).json({ message: 'Cart is empty' });
+      return;
+    }
+
+    // Validate shipping address using mock service
+    const addressValidation = AddressValidatorService.validate(shippingAddress);
+    if (!addressValidation.isValid) {
+      res.status(400).json({ message: addressValidation.message });
       return;
     }
 
@@ -140,7 +148,7 @@ export const getOrders = async (req: Request, res: Response) => {
 
     const orders = await prisma.order.findMany({
       where: whereClause,
-      include: { items: { include: { product: true } } },
+      include: { items: { include: { product: { include: { images: true } } } } },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -165,7 +173,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
       if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Update payment and publish to RabbitMQ to clear cart and send email
         await prisma.payment.updateMany({ where: { orderId: id }, data: { status: 'Succeeded' } });
-        await publishPaymentStatus(order.id, 'succeeded', paymentIntent.id);
+        await publishPaymentStatus(order.id, 'PAYMENT_SUCCESS', paymentIntent.id);
         res.json({ status: 'succeeded' });
         return;
       }
@@ -181,7 +189,7 @@ export const getOrder = async (req: Request, res: Response) => {
     const { id } = req.params;
     const order = await prisma.order.findUnique({
       where: { id: id as string },
-      include: { items: { include: { product: true } }, payments: true }
+      include: { items: { include: { product: { include: { images: true } } } }, payments: true }
     });
 
     if (!order) {

@@ -6,6 +6,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Plus, Minus, CheckCircle, ShieldCheck } from 'lucide-react';
+import { z } from 'zod';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_dummy');
 
@@ -69,6 +70,17 @@ const Checkout: React.FC = () => {
     country: 'US',
   });
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const shippingAddressSchema = z.object({
+    name: z.string().min(1, 'Name is required'),
+    email: z.string().email('Invalid email address'),
+    line1: z.string().min(1, 'Address is required'),
+    city: z.string().min(1, 'City is required'),
+    postal_code: z.string().regex(/^[A-Za-z0-9\s-]{3,10}$/, 'Invalid postal code format'),
+    country: z.string().min(1, 'Country is required')
+  });
+
   const [addresses, setAddresses] = useState<any[]>([]);
 
   useEffect(() => {
@@ -103,6 +115,21 @@ const Checkout: React.FC = () => {
   const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting.current) return;
+    
+    // Zod Validation
+    const validationResult = shippingAddressSchema.safeParse(shippingAddress);
+    if (!validationResult.success) {
+      const errors: Record<string, string> = {};
+      validationResult.error.issues.forEach((err: any) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setFormErrors(errors);
+      return;
+    }
+    setFormErrors({});
+
     isSubmitting.current = true;
     setIsInitializingPayment(true);
     try {
@@ -183,28 +210,34 @@ const Checkout: React.FC = () => {
                     <div className="input-group">
                       <label>Full Name</label>
                       <input required type="text" name="name" value={shippingAddress.name} onChange={handleInputChange} placeholder="John Doe" />
+                      {formErrors.name && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.name}</span>}
                     </div>
                     <div className="input-group">
                       <label>Email Address</label>
                       <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" />
+                      {formErrors.email && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.email}</span>}
                     </div>
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
                     <label>Address</label>
                     <input required type="text" name="line1" value={shippingAddress.line1} onChange={handleInputChange} placeholder="123 Happy St" />
+                    {formErrors.line1 && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.line1}</span>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
                     <div className="input-group">
                       <label>City</label>
                       <input required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} />
+                      {formErrors.city && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.city}</span>}
                     </div>
                     <div className="input-group">
                       <label>Postal Code</label>
                       <input required type="text" name="postal_code" value={shippingAddress.postal_code} onChange={handleInputChange} />
+                      {formErrors.postal_code && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.postal_code}</span>}
                     </div>
                     <div className="input-group">
                       <label>Country</label>
                       <input required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} />
+                      {formErrors.country && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.country}</span>}
                     </div>
                   </div>
                 </section>

@@ -36,7 +36,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           where: { transactionId: paymentIntent.id },
           data: { status: 'Succeeded' }
         });
-        await publishPaymentStatus(orderId, 'succeeded', paymentIntent.id);
+        await publishPaymentStatus(orderId, 'PAYMENT_SUCCESS', paymentIntent.id);
       }
       break;
     }
@@ -49,7 +49,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
           where: { transactionId: paymentIntent.id },
           data: { status: 'Failed' }
         });
-        await publishPaymentStatus(orderId, 'failed', paymentIntent.id);
+        await publishPaymentStatus(orderId, 'PAYMENT_FAILED', paymentIntent.id);
       }
       break;
     }

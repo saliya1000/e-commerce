@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { CheckCircle } from 'lucide-react';
+import { useCart } from '../context/CartContext';
 
 const OrderConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -9,6 +10,8 @@ const OrderConfirmation: React.FC = () => {
   const redirectStatus = searchParams.get('redirect_status'); // Stripe appends this
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const cartContext = useCart();
+  const fetchCart = cartContext?.fetchCart;
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -16,6 +19,10 @@ const OrderConfirmation: React.FC = () => {
         try {
           if (redirectStatus === 'succeeded') {
             await api.post(`/orders/${orderId}/verify-payment`);
+            // Give the backend worker a moment to clear the cart via RabbitMQ, then refresh frontend cart
+            setTimeout(() => {
+              if (fetchCart) fetchCart();
+            }, 500);
           }
           const res = await api.get(`/orders/${orderId}`);
           setOrder(res.data);
