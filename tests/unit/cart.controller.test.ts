@@ -16,6 +16,9 @@ jest.mock('../../src/prisma', () => ({
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+    },
+    product: {
+      findUnique: jest.fn(),
     }
   }
 }));
@@ -48,7 +51,7 @@ describe('Cart Controller', () => {
 
       expect(prisma.cart.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user123' },
-        include: { items: { include: { product: true } } }
+        include: { items: { include: { product: { include: { images: true } } } } }
       });
       expect(mockRes.json).toHaveBeenCalledWith({ id: 'cart1', items: [] });
     });
@@ -69,7 +72,8 @@ describe('Cart Controller', () => {
       
       const mockCart = { id: 'cart1', items: [] };
       (prisma.cart.findUnique as jest.Mock).mockResolvedValue(mockCart);
-      (prisma.cartItem.findFirst as jest.Mock).mockResolvedValue(null); // Item not in cart
+      (prisma.cartItem.findUnique as jest.Mock).mockResolvedValue(null); // Item not in cart
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({ id: 'prod1', stockQuantity: 10 });
 
       await addToCart(mockReq as Request, mockRes as Response);
 

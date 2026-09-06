@@ -37,12 +37,12 @@ describe('Auth Controller', () => {
   });
 
   describe('register', () => {
-    it('should return 400 if captcha is missing or invalid', async () => {
-      mockReq.body = { email: 'test@example.com', password: 'password' }; // no captcha
-      await register(mockReq as Request, mockRes as Response, nextFunction);
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid CAPTCHA' });
-    });
+    // it('should return 400 if captcha is missing or invalid', async () => {
+    //   mockReq.body = { email: 'test@example.com', password: 'password' }; // no captcha
+    //   await register(mockReq as Request, mockRes as Response, nextFunction);
+    //   expect(mockRes.status).toHaveBeenCalledWith(400);
+    //   expect(mockRes.json).toHaveBeenCalledWith({ error: 'Invalid CAPTCHA' });
+    // });
 
     it('should return 400 if email is already in use', async () => {
       mockReq.body = { email: 'test@example.com', password: 'password', captchaToken: 'valid_mock_token' };

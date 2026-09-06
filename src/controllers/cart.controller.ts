@@ -14,6 +14,10 @@ export const getCart = async (req: Request, res: Response) => {
     }
 
     if (!cart) {
+      if (!userId && !guestId) {
+        res.status(400).json({ message: 'User ID or Guest ID is required' });
+        return;
+      }
       // Create empty cart
       cart = await prisma.cart.create({
         data: userId ? { userId } : { guestId },
@@ -34,6 +38,11 @@ export const addToCart = async (req: Request, res: Response) => {
     const guestId = req.body.guestId;
     const { productId, quantity } = req.body;
 
+    if (!userId && !guestId) {
+      res.status(400).json({ message: 'User ID or Guest ID is required' });
+      return;
+    }
+
     let cart = await prisma.cart.findUnique({
       where: userId ? { userId } : { guestId },
     });
@@ -44,22 +53,36 @@ export const addToCart = async (req: Request, res: Response) => {
       });
     }
 
+    const product = await prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      res.status(404).json({ message: 'Product not found' });
+      return;
+    }
+
     // Check if item exists
     const existingItem = await prisma.cartItem.findUnique({
       where: { cartId_productId: { cartId: cart.id, productId } }
     });
 
+    const requestedQuantity = quantity || 1;
+    const totalCartQuantity = (existingItem?.quantity || 0) + requestedQuantity;
+
+    if (totalCartQuantity > product.stockQuantity) {
+      res.status(400).json({ message: `Not enough stock available for ${product.name}` });
+      return;
+    }
+
     if (existingItem) {
       await prisma.cartItem.update({
         where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + (quantity || 1) }
+        data: { quantity: totalCartQuantity }
       });
     } else {
       await prisma.cartItem.create({
         data: {
           cartId: cart.id,
           productId,
-          quantity: quantity || 1
+          quantity: requestedQuantity
         }
       });
     }
@@ -84,6 +107,21 @@ export const updateCartItem = async (req: Request, res: Response) => {
     if (quantity <= 0) {
       await prisma.cartItem.delete({ where: { id: id as string } });
     } else {
+      const existingItem = await prisma.cartItem.findUnique({ 
+        where: { id: id as string },
+        include: { product: true }
+      });
+
+      if (!existingItem) {
+        res.status(404).json({ message: 'Cart item not found' });
+        return;
+      }
+
+      if (quantity > existingItem.product.stockQuantity) {
+        res.status(400).json({ message: `Not enough stock available for ${existingItem.product.name}` });
+        return;
+      }
+
       await prisma.cartItem.update({
         where: { id: id as string },
         data: { quantity }

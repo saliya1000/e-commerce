@@ -172,3 +172,59 @@ export const generatePaymentFailedEmailHtml = (order: any): string => {
     </html>
   `;
 };
+
+export const generateRefundEmailHtml = (order: any): string => {
+  const customerName = order.shippingAddress?.name || 'Valued Customer';
+  
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Order Cancelled & Refunded</title>
+      <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f9f9fa; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 40px; margin-bottom: 40px; }
+        .header { background-color: #64748B; color: #ffffff; padding: 30px 20px; text-align: center; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+        .header h2 { margin: 10px 0 0; font-size: 18px; font-weight: 400; opacity: 0.9; }
+        .content { padding: 30px; color: #333333; }
+        .content h3 { color: #64748B; font-size: 18px; margin-top: 0; }
+        .order-info { background-color: #f4f6f8; padding: 15px; border-radius: 6px; margin-bottom: 25px; border-left: 4px solid #64748B; }
+        .order-info p { margin: 5px 0; font-size: 14px; }
+        .footer { background-color: #f4f6f8; color: #777777; padding: 20px; text-align: center; font-size: 13px; }
+        .footer p { margin: 5px 0; }
+        .action-button { display: inline-block; background-color: #FF7F50; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 20px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>HappyPets</h1>
+          <h2>Order Cancelled & Refunded</h2>
+        </div>
+        <div class="content">
+          <p>Hi ${customerName},</p>
+          <p>Your order has been successfully cancelled and a full refund has been issued to your original payment method.</p>
+          
+          <div class="order-info">
+            <p><strong>Order ID:</strong> ${order.id}</p>
+            <p><strong>Refund Amount:</strong> $${Number(order.totalAmount).toFixed(2)}</p>
+            <p><strong>Status:</strong> Cancelled & Refunded</p>
+          </div>
+          
+          <p>Please allow 3-5 business days for the refund to reflect on your bank statement. If you have any questions, feel free to contact us.</p>
+          
+          <div style="text-align: center;">
+            <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}" class="action-button">Return to Store</a>
+          </div>
+        </div>
+        <div class="footer">
+          <p>If you need assistance, our support team is always here to help.</p>
+          <p>&copy; ${new Date().getFullYear()} HappyPets. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};

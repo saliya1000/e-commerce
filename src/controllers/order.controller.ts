@@ -29,6 +29,14 @@ export const checkout = async (req: Request, res: Response) => {
       return;
     }
 
+    // Verify stock availability
+    const outOfStockItems = cart.items.filter(item => item.quantity > item.product.stockQuantity);
+    if (outOfStockItems.length > 0) {
+      const names = outOfStockItems.map(item => item.product.name).join(', ');
+      res.status(400).json({ message: `Cannot proceed to checkout. The following items do not have enough stock: ${names}` });
+      return;
+    }
+
     // Validate shipping address using mock service
     const addressValidation = AddressValidatorService.validate(shippingAddress);
     if (!addressValidation.isValid) {

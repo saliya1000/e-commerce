@@ -2,6 +2,7 @@ import request from 'supertest';
 import app from '../../src/app';
 import prisma from '../../src/prisma';
 import jwt from 'jsonwebtoken';
+import { generateAccessToken } from '../../src/utils/jwt';
 
 describe('Checkout Integration Test', () => {
   let token: string;
@@ -29,7 +30,7 @@ describe('Checkout Integration Test', () => {
     });
 
     // Generate token
-    token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret');
+    token = generateAccessToken(user.id, user.role);
 
     // Create a test category
     category = await prisma.category.create({
@@ -63,7 +64,7 @@ describe('Checkout Integration Test', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ productId: product.id, quantity: 2 });
     
-    expect(addRes.status).toBe(201);
+    expect(addRes.status).toBe(200);
 
     // 2. Checkout
     const checkoutRes = await request(app)
@@ -71,10 +72,10 @@ describe('Checkout Integration Test', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         shippingAddress: {
-          line1: '123 Test St',
-          city: 'Test City',
+          line1: '123 Main St',
+          city: 'Anytown',
           country: 'US',
-          postal_code: '12345'
+          postal_code: '90210'
         }
       });
     
@@ -90,7 +91,7 @@ describe('Checkout Integration Test', () => {
 
     expect(order).toBeDefined();
     expect(order?.status).toBe('Pending Payment');
-    expect(order?.totalAmount.toNumber()).toBe(40); // 2 * 20
+    expect(order?.totalAmount.toNumber()).toBe(45); // 2 * 20 + 5 standard shipping
     expect(order?.items.length).toBe(1);
 
     // 4. Verify cart is cleared

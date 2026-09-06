@@ -17,6 +17,10 @@ jest.mock('../../src/prisma', () => ({
     },
     payment: {
       create: jest.fn(),
+    },
+    user: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
     }
   }
 }));
@@ -45,7 +49,7 @@ describe('Order Controller', () => {
           line1: '123 Main St',
           city: 'Anytown',
           country: 'US',
-          postal_code: '12345'
+          postal_code: '90210'
         }
       }
     };
@@ -72,7 +76,7 @@ describe('Order Controller', () => {
         id: 'cart1',
         items: [
           {
-            product: { id: 'prod1', price: 10 },
+            product: { id: 'prod1', price: 10, stockQuantity: 10, name: 'Test Product' },
             quantity: 2
           }
         ]

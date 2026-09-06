@@ -1,6 +1,7 @@
 import { getChannel } from '../utils/amqp';
 import prisma from '../prisma';
 import { sendEmail } from '../utils/mailer';
+import { generateRefundEmailHtml } from '../utils/emailTemplates';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
@@ -72,11 +73,12 @@ export const startRefundWorker = async () => {
         const shippingAddress: any = order.shippingAddress || {};
         const customerEmail = order.user?.email || shippingAddress.email;
         if (customerEmail) {
+          const htmlContent = generateRefundEmailHtml(order);
           await sendEmail(
             customerEmail,
             `Order Cancelled & Refunded - ${orderId}`,
             `Your order ${orderId} has been successfully cancelled and refunded.`,
-            `<h1>Refund Confirmation</h1><p>Your order ${orderId} has been cancelled and refunded.</p>`
+            htmlContent
           );
         }
         

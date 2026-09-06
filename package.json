@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "start:migrate:prod": "npx prisma migrate deploy && npm run start",
     "test": "jest",
+    "test:local": "DATABASE_URL=\"postgresql://postgres:password@localhost:5433/e_commerce?schema=public\" jest",
     "test:integration": "jest --config jest.integration.config.js"
   },
   "keywords": [],

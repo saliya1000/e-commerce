@@ -140,7 +140,7 @@ model Order {
   guestId         String?
   status          String      @default("Pending Payment") // Pending Payment, Payment Successful, Payment Failed, Cancelled, Processing, Shipped, Delivered
   totalAmount     Decimal     @db.Decimal(10, 2)
-  shippingAddress Json
+  shippingAddress String      // Encrypted JSON string
   shippingMethod  String      @default("standard")
   shippingCost    Decimal     @default(0.00) @db.Decimal(10, 2)
   items           OrderItem[]
@@ -166,7 +166,7 @@ model Payment {
   amount         Decimal  @db.Decimal(10, 2)
   status         String   // Pending, Succeeded, Failed
   provider       String   @default("stripe")
-  transactionId  String?  @unique
+  transactionId  String?  @unique // Encrypted
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
@@ -177,11 +177,11 @@ model Address {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   firstName    String
   lastName     String
-  addressLine1 String
-  addressLine2 String?
-  city         String
-  state        String
-  postalCode   String
+  addressLine1 String   // Encrypted
+  addressLine2 String?  // Encrypted
+  city         String   // Encrypted
+  state        String   // Encrypted
+  postalCode   String   // Encrypted
   country      String
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
