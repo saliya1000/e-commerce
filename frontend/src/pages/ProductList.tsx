@@ -11,6 +11,7 @@ interface Product {
   price: string;
   brand: string;
   stockQuantity: number;
+  category?: { id: string; name: string };
 }
 
 const ProductList: React.FC = () => {
@@ -106,25 +107,46 @@ const ProductList: React.FC = () => {
 
       <div style={{ display: 'flex', flex: 1, padding: '2rem', gap: '2rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         {/* Faceted Search Sidebar */}
-        <aside style={{ width: '250px', flexShrink: 0 }}>
+        <aside style={{ width: '250px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          {/* Category Widget */}
+          <div className="glass-panel" style={{ padding: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Categories</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <button 
+                onClick={() => setCategoryId('')}
+                style={{
+                  textAlign: 'left', padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                  background: categoryId === '' ? 'var(--primary)' : 'transparent',
+                  color: categoryId === '' ? 'white' : 'var(--text-main)',
+                  fontWeight: categoryId === '' ? 600 : 400
+                }}
+              >
+                All Categories
+              </button>
+              {categories
+                .filter(cat => !debouncedSearch || products.some(p => p.category?.id === cat.id) || cat.id === categoryId)
+                .map(cat => (
+                <button 
+                  key={cat.id}
+                  onClick={() => setCategoryId(cat.id)}
+                  style={{
+                    textAlign: 'left', padding: '0.5rem 1rem', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: 'all 0.2s',
+                    background: categoryId === cat.id ? 'var(--primary)' : 'transparent',
+                    color: categoryId === cat.id ? 'white' : 'var(--text-main)',
+                    fontWeight: categoryId === cat.id ? 600 : 400
+                  }}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="glass-panel" style={{ padding: '1.5rem', position: 'sticky', top: '100px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
               <Filter size={18} />
               <h3 style={{ fontSize: '1.1rem' }}>Filters</h3>
-            </div>
-
-            <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Category</label>
-              <select 
-                value={categoryId} 
-                onChange={(e) => setCategoryId(e.target.value)}
-                style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '0.95rem' }}
-              >
-                <option value="">All Categories</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
@@ -174,7 +196,7 @@ const ProductList: React.FC = () => {
                 style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '0.95rem' }}
               >
                 <option value="relevance-desc">Relevance</option>
-                <option value="created_at-desc">Newest First</option>
+                <option value="createdAt-desc">Newest First</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
                 <option value="rating-desc">Highest Rated</option>
