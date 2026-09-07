@@ -88,7 +88,16 @@ const CartPage: React.FC = () => {
                         <span style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-h)', minWidth: '40px', textAlign: 'center' }}>{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          style={{ padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-h)' }}
+                          disabled={item.quantity >= item.product.stockQuantity}
+                          style={{ 
+                            padding: '8px 12px', 
+                            background: 'transparent', 
+                            border: 'none', 
+                            cursor: item.quantity >= item.product.stockQuantity ? 'not-allowed' : 'pointer', 
+                            color: 'var(--text-h)',
+                            opacity: item.quantity >= item.product.stockQuantity ? 0.3 : 1 
+                          }}
+                          title={item.quantity >= item.product.stockQuantity ? "Max stock reached" : ""}
                         >
                           <Plus size={16} />
                         </button>

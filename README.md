@@ -82,6 +82,7 @@ erDiagram
     USER ||--o{ ORDER : places
     USER ||--o{ ADDRESS : manages
     USER ||--o{ PAYMENT_METHOD : saves
+    USER ||--o| CART : owns
     USER {
         String id PK
         String email
@@ -91,11 +92,26 @@ erDiagram
     PRODUCT ||--o{ PRODUCT_IMAGE : has
     PRODUCT ||--o{ PRODUCT_ATTRIBUTE : has
     PRODUCT ||--o{ REVIEW : receives
+    PRODUCT ||--o{ CART_ITEM : included_in
     PRODUCT {
         String id PK
         String name
         Decimal price
         Int stockQuantity
+    }
+
+    CART ||--o{ CART_ITEM : contains
+    CART {
+        String id PK
+        String userId FK
+        String guestId
+    }
+
+    CART_ITEM {
+        String id PK
+        String cartId FK
+        String productId FK
+        Int quantity
     }
 
     ORDER ||--o{ ORDER_ITEM : contains

@@ -30,7 +30,19 @@ const CheckoutForm = ({ orderId, onCancel }: { orderId: string, onCancel: () => 
     });
 
     if (result.error) {
-      setError(result.error.message || 'An unexpected error occurred.');
+      let customMessage = result.error.message || 'An unexpected error occurred.';
+
+      if (result.error.type === 'api_connection_error') {
+        customMessage = 'Payment gateway timeout. Please try again.';
+      } else if (result.error.code === 'invalid_number') {
+        customMessage = 'Invalid card number error. Please verify your card details.';
+      } else if (result.error.code === 'expired_card') {
+        customMessage = 'Expired card error. Please use a valid card.';
+      } else if (result.error.decline_code === 'insufficient_funds' || result.error.code === 'insufficient_funds') {
+        customMessage = 'Insufficient funds error. Please try a different payment method.';
+      }
+
+      setError(customMessage);
       setProcessing(false);
     }
   };
@@ -64,11 +76,12 @@ const Checkout: React.FC = () => {
   const [shippingAddress, setShippingAddress] = useState({
     name: '',
     email: user?.email || '',
+    phone: '',
     line1: '',
     city: '',
     state: '',
     postal_code: '',
-    country: 'US',
+    country: 'Finland',
   });
 
   const [saveAddress, setSaveAddress] = useState(true);
@@ -78,6 +91,7 @@ const Checkout: React.FC = () => {
   const shippingAddressSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().email('Invalid email address'),
+    phone: z.string().regex(/^\+?[0-9\s-]{7,15}$/, 'Invalid phone format'),
     line1: z.string().min(1, 'Address is required'),
     city: z.string().min(1, 'City is required'),
     state: z.string().min(1, 'State is required'),
@@ -96,6 +110,7 @@ const Checkout: React.FC = () => {
            setShippingAddress({
              name: `${defaultAddr.firstName} ${defaultAddr.lastName}`,
              email: user.email || '',
+             phone: '', // Saved addresses don't have phone numbers in DB currently
              line1: defaultAddr.addressLine1,
              city: defaultAddr.city,
              state: defaultAddr.state,
@@ -168,6 +183,7 @@ const Checkout: React.FC = () => {
       setShippingAddress({
         name: `${addr.firstName} ${addr.lastName}`,
         email: user?.email || '',
+        phone: '', // Saved addresses don't have phone numbers in DB currently
         line1: addr.addressLine1,
         city: addr.city,
         state: addr.state,
@@ -226,6 +242,11 @@ const Checkout: React.FC = () => {
                       <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" />
                       {formErrors.email && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.email}</span>}
                     </div>
+                  </div>
+                  <div className="input-group" style={{ marginTop: '1.25rem' }}>
+                    <label>Phone Number</label>
+                    <input required type="tel" name="phone" value={shippingAddress.phone} onChange={handleInputChange} placeholder="+1 234 567 8900" />
+                    {formErrors.phone && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.phone}</span>}
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
                     <label>Address</label>
@@ -375,7 +396,7 @@ const Checkout: React.FC = () => {
                           <Minus size={14} />
                         </button>
                         <span style={{ padding: '4px 8px', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem', minWidth: '30px', textAlign: 'center' }}>{item.quantity}</span>
-                        <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} disabled={clientSecret !== ''} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: clientSecret ? 'not-allowed' : 'pointer', color: 'var(--text-muted)' }}>
+                        <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} disabled={clientSecret !== '' || item.quantity >= item.product.stockQuantity} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: (clientSecret !== '' || item.quantity >= item.product.stockQuantity) ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', opacity: item.quantity >= item.product.stockQuantity ? 0.3 : 1 }} title={item.quantity >= item.product.stockQuantity ? "Max stock reached" : ""}>
                           <Plus size={14} />
                         </button>
                       </div>
