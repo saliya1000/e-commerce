@@ -11,6 +11,8 @@ model User {
   id                 String         @id @default(uuid())
   email              String         @unique
   passwordHash       String?
+  firstName          String?
+  lastName           String?
   provider           String         @default("local") // local, google, etc.
   providerId         String?        
   twoFactorEnabled   Boolean        @default(false)

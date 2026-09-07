@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Settings, Shield, ShieldCheck, AlertCircle, Key,
+  Shield, ShieldCheck, AlertCircle, Key,
   LayoutDashboard, Package, UserCircle, CreditCard, MapPin, Award, Bell, LogOut, Users, Lightbulb, Box, Plus, Trash2
 } from 'lucide-react';
 import api from '../services/api';
@@ -12,6 +12,27 @@ const Account: React.FC = () => {
   const navigate = useNavigate();
   
   const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Profile update state
+  const { updateUser } = useAuth();
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [profileMessage, setProfileMessage] = useState({ type: '', text: '' });
+
+  // Password update state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState({ type: '', text: '' });
+  
+  // Account Deletion state
+  const [deleteEmail, setDeleteEmail] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState(''); // for OAuth users
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteAccountMessage, setDeleteAccountMessage] = useState({ type: '', text: '' });
   
   // Existing state
   const [setupStep, setSetupStep] = useState<'idle' | 'generating' | 'verify' | 'success'>('idle');
@@ -82,6 +103,68 @@ const Account: React.FC = () => {
     } catch (err) {
       console.error('Failed to cancel order', err);
       alert('Cannot cancel this order.');
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdatingProfile(true);
+    setProfileMessage({ type: '', text: '' });
+    try {
+      const res = await api.put('/auth/profile', { firstName, lastName });
+      updateUser(res.data.user);
+      setProfileMessage({ type: 'success', text: 'Profile updated successfully!' });
+    } catch (err: any) {
+      setProfileMessage({ type: 'error', text: err.response?.data?.error || 'Failed to update profile' });
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      return setPasswordMessage({ type: 'error', text: 'New passwords do not match' });
+    }
+    setIsUpdatingPassword(true);
+    setPasswordMessage({ type: '', text: '' });
+    try {
+      // For OAuth users (hasPassword === false), don't send currentPassword
+      const payload = user?.hasPassword
+        ? { currentPassword, newPassword }
+        : { newPassword };
+      const res = await api.put('/auth/password', payload);
+      setPasswordMessage({ type: 'success', text: res.data.message || 'Password updated successfully!' });
+      // After setting a password, update local user state so the form switches to 'change' mode
+      updateUser({ ...user!, hasPassword: true });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setPasswordMessage({ type: 'error', text: err.response?.data?.error || 'Failed to update password' });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!window.confirm("Are you absolutely sure you want to permanently delete your account? This action cannot be undone.")) return;
+    
+    setIsDeletingAccount(true);
+    setDeleteAccountMessage({ type: '', text: '' });
+    try {
+      // OAuth users send confirmationText; local users send password
+      const payload = user?.hasPassword === false
+        ? { email: deleteEmail, confirmationText: deleteConfirmText }
+        : { email: deleteEmail, password: deletePassword };
+
+      await api.delete('/auth/account', { data: payload });
+      handleLogout();
+    } catch (err: any) {
+      setDeleteAccountMessage({ type: 'error', text: err.response?.data?.error || 'Failed to delete account' });
+    } finally {
+      setIsDeletingAccount(false);
     }
   };
 
@@ -195,8 +278,32 @@ const Account: React.FC = () => {
     navigate('/login');
   };
 
-  const userName = user?.email ? user.email.split('@')[0] : 'User';
-  const initials = userName.substring(0, 2).toUpperCase();
+  /**
+   * Display name priority (same pattern used by Amazon, Google, etc.):
+   * 1. Full name (firstName + lastName) — shown once the user sets both
+   * 2. First name only — if only firstName is set
+   * 3. Email prefix — fallback for users who haven't set a name yet
+   */
+  const getDisplayName = () => {
+    const first = user?.firstName?.trim();
+    const last = user?.lastName?.trim();
+    if (first && last) return `${first} ${last}`;
+    if (first) return first;
+    if (last) return last;
+    return user?.email ? user.email.split('@')[0] : 'User';
+  };
+  const userName = getDisplayName();
+
+  /** Initials derived from real name, not just the email prefix */
+  const getInitials = () => {
+    const first = user?.firstName?.trim();
+    const last = user?.lastName?.trim();
+    if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+    if (first) return first.substring(0, 2).toUpperCase();
+    const emailPrefix = user?.email ? user.email.split('@')[0] : 'U';
+    return emailPrefix.substring(0, 2).toUpperCase();
+  };
+  const initials = getInitials();
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -290,99 +397,214 @@ const Account: React.FC = () => {
   );
 
   const renderProfile = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Settings size={32} color="var(--primary)" />
-        <h1 style={{ fontSize: '2rem', margin: 0 }}>Profile & Security</h1>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+      {/* Page Header */}
+      <div style={{ marginBottom: '0.5rem' }}>
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 0.25rem', color: 'var(--text-h)' }}>Profile &amp; Security</h1>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>Manage your personal details and account security</p>
       </div>
 
-      <div className="glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-        <div>
-          <h2 style={{ fontSize: '1.25rem', margin: '0 0 0.5rem' }}>Profile Information</h2>
-          <p className="text-muted" style={{ margin: 0 }}>Manage your personal details</p>
+      {/* Two-column grid for profile + password */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+
+        {/* Personal Details */}
+        <div style={{ background: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border)', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+            <div style={{ background: 'rgba(99, 102, 241, 0.12)', padding: '0.5rem', borderRadius: '8px', display: 'flex' }}>
+              <UserCircle size={18} color="#6366f1" />
+            </div>
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: 'var(--text-h)' }}>Personal Details</h2>
+          </div>
+
+          {profileMessage.text && (
+            <div style={{
+              padding: '0.65rem 0.875rem', borderRadius: '8px', marginBottom: '1rem',
+              background: profileMessage.type === 'success' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+              color: profileMessage.type === 'success' ? '#10b981' : '#ef4444',
+              border: `1px solid ${profileMessage.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+              display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 500
+            }}>
+              {profileMessage.type === 'success' ? <ShieldCheck size={15} /> : <AlertCircle size={15} />}
+              {profileMessage.text}
+            </div>
+          )}
+
+          <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>First Name</label>
+                <input type="text" className="premium-input" value={firstName} onChange={e => setFirstName(e.target.value)} placeholder="John" style={{
+                  width: '100%', padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)',
+                  background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Last Name</label>
+                <input type="text" className="premium-input" value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Doe" style={{
+                  width: '100%', padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)',
+                  background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Email Address</label>
+              <input type="email" value={user?.email} disabled style={{
+                width: '100%', padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)',
+                background: 'rgba(255,255,255,0.02)', color: 'var(--text-muted)', fontSize: '0.9rem', cursor: 'not-allowed', boxSizing: 'border-box'
+              }} />
+            </div>
+            <button type="submit" className="premium-btn" disabled={isUpdatingProfile} style={{
+              padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none',
+              background: 'linear-gradient(135deg, #6366f1, #4f46e5)', color: 'white',
+              fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start',
+              boxShadow: '0 4px 12px -4px rgba(99, 102, 241, 0.5)'
+            }}>
+              {isUpdatingProfile ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
         </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: '1rem' }}>
-          <strong style={{ color: 'var(--text-muted)' }}>Email:</strong>
-          <span>{user?.email}</span>
-          
-          <strong style={{ color: 'var(--text-muted)' }}>Account ID:</strong>
-          <span style={{ fontFamily: 'monospace', fontSize: '0.9rem' }}>{user?.id}</span>
-          
-          <strong style={{ color: 'var(--text-muted)' }}>Role:</strong>
-          <span style={{ textTransform: 'capitalize' }}>{user?.role}</span>
+
+        {/* Change Password */}
+        <div style={{ background: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border)', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+            <div style={{ background: 'rgba(236, 72, 153, 0.12)', padding: '0.5rem', borderRadius: '8px', display: 'flex' }}>
+              <Key size={18} color="#ec4899" />
+            </div>
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: 'var(--text-h)' }}>
+              {user?.hasPassword === false ? 'Set Password' : 'Change Password'}
+            </h2>
+            {user?.hasPassword === false && (
+              <span style={{ fontSize: '0.75rem', background: 'rgba(99,102,241,0.12)', color: '#818cf8', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 500 }}>OAuth account</span>
+            )}
+          </div>
+
+          {passwordMessage.text && (
+            <div style={{
+              padding: '0.65rem 0.875rem', borderRadius: '8px', marginBottom: '1rem',
+              background: passwordMessage.type === 'success' ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+              color: passwordMessage.type === 'success' ? '#10b981' : '#ef4444',
+              border: `1px solid ${passwordMessage.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`,
+              display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 500
+            }}>
+              {passwordMessage.type === 'success' ? <ShieldCheck size={15} /> : <AlertCircle size={15} />}
+              {passwordMessage.text}
+            </div>
+          )}
+
+          <form onSubmit={handleUpdatePassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Only local-auth users need to confirm their current password */}
+            {user?.hasPassword !== false && (
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Current Password</label>
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required placeholder="••••••••" className="premium-input" style={{
+                  width: '100%', padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)',
+                  background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                }} />
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>New Password</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={8} required placeholder="••••••••" className="premium-input" style={{
+                  width: '100%', padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)',
+                  background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Confirm Password</label>
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} minLength={8} required placeholder="••••••••" className="premium-input" style={{
+                  width: '100%', padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid var(--border)',
+                  background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
+                }} />
+              </div>
+            </div>
+            <button type="submit" className="premium-btn" disabled={isUpdatingPassword} style={{
+              padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none',
+              background: 'linear-gradient(135deg, #ec4899, #be185d)', color: 'white',
+              fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start',
+              boxShadow: '0 4px 12px -4px rgba(236, 72, 153, 0.5)'
+            }}>
+              {isUpdatingPassword
+                ? (user?.hasPassword === false ? 'Setting...' : 'Updating...')
+                : (user?.hasPassword === false ? 'Set Password' : 'Update Password')}
+            </button>
+          </form>
         </div>
       </div>
 
-      <div className="glass-panel" style={{ padding: '2rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-          <Shield size={24} color="var(--primary)" />
-          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Two-Factor Authentication (2FA)</h2>
+      {/* 2FA Section */}
+      <div style={{ background: 'var(--bg)', borderRadius: '12px', border: '1px solid var(--border)', padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+          <div style={{ background: 'rgba(16, 185, 129, 0.12)', padding: '0.5rem', borderRadius: '8px', display: 'flex' }}>
+            <Shield size={18} color="#10b981" />
+          </div>
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: 'var(--text-h)' }}>Two-Factor Authentication (2FA)</h2>
         </div>
-        <p className="text-muted" style={{ marginBottom: '2rem', lineHeight: '1.5' }}>
-          Add an extra layer of security to your account. Once enabled, you will be required to enter a one-time code generated by your authenticator app (e.g. Google Authenticator, Authy) when signing in.
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem', lineHeight: '1.5', margin: '0 0 1rem' }}>
+          Add an extra layer of security. When enabled, you'll need a code from your authenticator app (e.g. Google Authenticator) on every login.
         </p>
 
         {error && (
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--error)', padding: '1rem', borderRadius: '8px', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <AlertCircle size={20} color="var(--error)" />
-            <span style={{ fontSize: '0.9rem', color: 'var(--error)' }}>{error}</span>
+          <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '0.65rem 0.875rem', borderRadius: '8px', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={15} color="#ef4444" />
+            <span style={{ fontSize: '0.85rem', color: '#ef4444' }}>{error}</span>
           </div>
         )}
 
         {setupStep === 'idle' && (
-          <button className="btn" onClick={start2FASetup} style={{ maxWidth: '200px' }}>
+          <button className="premium-btn" onClick={start2FASetup} style={{
+            padding: '0.65rem 1.25rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)',
+            background: 'rgba(16, 185, 129, 0.08)', color: '#10b981',
+            fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer'
+          }}>
             Enable 2FA
           </button>
         )}
 
         {setupStep === 'generating' && (
-          <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', background: 'rgba(0,0,0,0.05)', borderRadius: '8px', fontSize: '0.875rem' }}>
             Generating QR Code...
           </div>
         )}
 
         {setupStep === 'verify' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', border: '1px solid var(--border)', padding: '1.5rem', borderRadius: '12px', background: 'var(--bg-muted)' }}>
+          <div style={{ border: '1px solid var(--border)', padding: '1.25rem', borderRadius: '10px', background: 'rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2rem', alignItems: 'flex-start' }}>
               <div>
-                <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>1. Scan this QR Code</h3>
-                <p className="text-muted" style={{ margin: '0 0 1rem', maxWidth: '300px' }}>
-                  Open your authenticator app and scan the QR code below.
-                </p>
+                <p style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.75rem', color: 'var(--text-h)' }}>1. Scan this QR Code</p>
                 {qrCodeUrl && (
-                  <div style={{ background: 'white', padding: '1rem', borderRadius: '8px', display: 'inline-block' }}>
-                    <img src={qrCodeUrl} alt="2FA QR Code" style={{ width: '200px', height: '200px' }} />
+                  <div style={{ background: 'white', padding: '0.75rem', borderRadius: '8px', display: 'inline-block' }}>
+                    <img src={qrCodeUrl} alt="2FA QR Code" style={{ width: '160px', height: '160px', display: 'block' }} />
                   </div>
                 )}
               </div>
-
-              <div style={{ flex: 1, minWidth: '300px' }}>
-                <h3 style={{ margin: '0 0 1rem', fontSize: '1.1rem' }}>2. Enter the Code</h3>
-                <p className="text-muted" style={{ margin: '0 0 1rem' }}>
-                  Enter the 6-digit code from your app to verify setup.
-                </p>
-                
-                <form onSubmit={verify2FA}>
-                  <div className="input-group">
-                    <div style={{ position: 'relative' }}>
-                      <Key size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                      <input
-                        type="text"
-                        placeholder="000000"
-                        maxLength={6}
-                        value={twoFactorToken}
-                        onChange={(e) => setTwoFactorToken(e.target.value.replace(/[^0-9]/g, ''))}
-                        style={{ paddingLeft: '2.5rem', letterSpacing: '0.5rem', fontFamily: 'monospace' }}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
-                    <button type="button" className="btn btn-outline" onClick={() => setSetupStep('idle')} disabled={isSubmitting}>
-                      Cancel
-                    </button>
-                    <button type="submit" className="btn" disabled={isSubmitting || twoFactorToken.length !== 6}>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: 600, margin: '0 0 0.75rem', color: 'var(--text-h)' }}>2. Enter the 6-digit code</p>
+                <form onSubmit={verify2FA} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <input
+                    type="text"
+                    placeholder="000000"
+                    maxLength={6}
+                    value={twoFactorToken}
+                    onChange={(e) => setTwoFactorToken(e.target.value.replace(/[^0-9]/g, ''))}
+                    style={{
+                      padding: '0.65rem 1rem', letterSpacing: '0.5rem', fontFamily: 'monospace',
+                      fontSize: '1.25rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)',
+                      background: 'rgba(0,0,0,0.15)', color: '#10b981', outline: 'none', width: '180px'
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button type="button" onClick={() => setSetupStep('idle')} disabled={isSubmitting} style={{
+                      padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid var(--border)',
+                      background: 'transparent', color: 'var(--text-h)', fontSize: '0.875rem', cursor: 'pointer'
+                    }}>Cancel</button>
+                    <button type="submit" disabled={isSubmitting || twoFactorToken.length !== 6} style={{
+                      padding: '0.6rem 1.25rem', borderRadius: '8px', border: 'none',
+                      background: 'linear-gradient(135deg, #10b981, #059669)', color: 'white',
+                      fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+                      opacity: (isSubmitting || twoFactorToken.length !== 6) ? 0.6 : 1
+                    }}>
                       {isSubmitting ? 'Verifying...' : 'Verify & Enable'}
                     </button>
                   </div>
@@ -393,15 +615,105 @@ const Account: React.FC = () => {
         )}
 
         {setupStep === 'success' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success)', borderRadius: '8px' }}>
-            <ShieldCheck size={32} color="var(--success)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '8px' }}>
+            <ShieldCheck size={20} color="#10b981" />
             <div>
-              <h3 style={{ color: 'var(--success)', margin: '0 0 0.25rem' }}>2FA Enabled Successfully!</h3>
-              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.95rem' }}>Your account is now protected with two-factor authentication.</p>
+              <p style={{ color: '#10b981', margin: '0 0 0.1rem', fontSize: '0.9rem', fontWeight: 600 }}>2FA Enabled!</p>
+              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.8rem' }}>Your account is now protected with two-factor authentication.</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Danger Zone */}
+      <div style={{ background: 'var(--bg)', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.25)', padding: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
+          <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '8px', display: 'flex' }}>
+            <Trash2 size={18} color="#ef4444" />
+          </div>
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#ef4444' }}>Delete Account</h2>
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '0 0 1rem', lineHeight: '1.5' }}>
+          Permanently delete your HappyPets account. This is irreversible — all your data, addresses, and history will be removed.
+        </p>
+
+        {deleteAccountMessage.text && (
+          <div style={{
+            padding: '0.65rem 0.875rem', borderRadius: '8px', marginBottom: '1rem',
+            background: 'rgba(239, 68, 68, 0.08)', color: '#ef4444',
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: 500
+          }}>
+            <AlertCircle size={15} />
+            {deleteAccountMessage.text}
+          </div>
+        )}
+
+        <form onSubmit={handleDeleteAccount} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Verify Email</label>
+            <input type="email" value={deleteEmail} onChange={e => setDeleteEmail(e.target.value)} required placeholder="your@email.com" className="premium-input-danger" style={{
+              padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)',
+              background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', minWidth: '220px'
+            }} />
+          </div>
+          {user?.hasPassword === false ? (
+            // OAuth user: no password to verify, require typing DELETE instead
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                Type <strong style={{ color: '#ef4444' }}>DELETE</strong> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                required
+                placeholder="DELETE"
+                className="premium-input-danger"
+                style={{
+                  padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)',
+                  background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: '#ef4444', fontSize: '0.9rem',
+                  outline: 'none', minWidth: '160px', fontWeight: 600, letterSpacing: '0.05em'
+                }}
+              />
+            </div>
+          ) : (
+            // Local auth user: must verify with password
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.35rem', fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 500 }}>Verify Password</label>
+              <input type="password" value={deletePassword} onChange={e => setDeletePassword(e.target.value)} required placeholder="••••••••" className="premium-input-danger" style={{
+                padding: '0.6rem 0.875rem', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)',
+                background: 'var(--bg-alt, rgba(0,0,0,0.1))', color: 'var(--text-h)', fontSize: '0.9rem', outline: 'none', minWidth: '200px'
+              }} />
+            </div>
+          )}
+          <button type="submit" className="premium-btn" disabled={isDeletingAccount} style={{
+            padding: '0.65rem 1.25rem', borderRadius: '8px', border: 'none',
+            background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: 'white',
+            fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer',
+            boxShadow: '0 4px 12px -4px rgba(239, 68, 68, 0.4)'
+          }}>
+            {isDeletingAccount ? 'Deleting...' : 'Delete My Account'}
+          </button>
+        </form>
+      </div>
+
+      <style>{`
+        .premium-input:focus {
+          border-color: #6366f1 !important;
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12) !important;
+        }
+        .premium-input-danger:focus {
+          border-color: #ef4444 !important;
+          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12) !important;
+        }
+        .premium-btn:hover:not(:disabled) {
+          filter: brightness(1.08);
+          transform: translateY(-1px);
+        }
+        .premium-btn:active:not(:disabled) { transform: translateY(0); }
+        .premium-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+      `}</style>
     </div>
   );
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, User, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -25,6 +25,28 @@ const Navbar: React.FC = () => {
   const redirectParam = (location.pathname !== '/login' && location.pathname !== '/register') 
     ? `?redirect=${encodeURIComponent(location.pathname + location.search)}` 
     : '';
+
+  /**
+   * Display name priority — same as Account page and real-world apps:
+   * Full name → First name → email prefix
+   */
+  const getDisplayName = () => {
+    const first = user?.firstName?.trim();
+    const last = user?.lastName?.trim();
+    if (first && last) return `${first} ${last}`;
+    if (first) return first;
+    if (last) return last;
+    return user?.email ? user.email.split('@')[0] : 'Account';
+  };
+
+  const getInitials = () => {
+    const first = user?.firstName?.trim();
+    const last = user?.lastName?.trim();
+    if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+    if (first) return first.substring(0, 2).toUpperCase();
+    const prefix = user?.email ? user.email.split('@')[0] : 'U';
+    return prefix.substring(0, 2).toUpperCase();
+  };
 
   return (
     <nav className="navbar glass">
@@ -64,10 +86,21 @@ const Navbar: React.FC = () => {
         </Link>
         
         {isAuthenticated ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link to="/account" style={{ color: 'var(--text-main)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <User size={20} />
-              <span style={{ fontWeight: 600 }}>{user?.email?.split('@')[0]}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Link to="/account" style={{ color: 'var(--text-main)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              {/* Avatar circle with initials — updates immediately when name is saved */}
+              <div style={{
+                width: '32px', height: '32px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
+                color: 'white', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem',
+                flexShrink: 0, boxShadow: '0 2px 8px rgba(79,70,229,0.35)'
+              }}>
+                {getInitials()}
+              </div>
+              <span style={{ fontWeight: 600, fontSize: '0.9rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {getDisplayName()}
+              </span>
             </Link>
             <button onClick={logout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
               <LogOut size={20} />

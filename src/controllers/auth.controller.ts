@@ -30,6 +30,23 @@ export const resetPasswordSchema = Joi.object({
   newPassword: Joi.string().min(8).required()
 });
 
+export const updateProfileSchema = Joi.object({
+  firstName: Joi.string().allow('').optional(),
+  lastName: Joi.string().allow('').optional()
+});
+
+export const updatePasswordSchema = Joi.object({
+  currentPassword: Joi.string().optional(), // Optional — not required for OAuth users who have no password yet
+  newPassword: Joi.string().min(8).required()
+});
+
+export const deleteAccountSchema = Joi.object({
+  email: Joi.string().email().required(),
+  // Local users supply their password; OAuth users supply confirmationText instead
+  password: Joi.string().optional(),
+  confirmationText: Joi.string().optional()
+});
+
 // Controllers
 export const register = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -126,7 +143,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
+    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName, hasPassword: !!user.passwordHash } });
   } catch (error) {
     next(error);
   }
@@ -195,7 +212,10 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
       user: {
         id: savedToken.user.id,
         email: savedToken.user.email,
-        role: savedToken.user.role
+        role: savedToken.user.role,
+        firstName: savedToken.user.firstName,
+        lastName: savedToken.user.lastName,
+        hasPassword: !!savedToken.user.passwordHash
       }
     });
   } catch (error) {
@@ -383,7 +403,14 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
 
     // Redirect to the frontend with token and user payload in the URL hash
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
-    const userPayload = Buffer.from(JSON.stringify({ id: user.id, email: user.email, role: user.role })).toString('base64');
+    const userPayload = Buffer.from(JSON.stringify({ 
+      id: user.id, 
+      email: user.email, 
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      hasPassword: !!user.passwordHash
+    })).toString('base64');
     
     let redirectUrl = `${clientUrl}/oauth/callback#token=${accessToken}&user=${userPayload}`;
     if (req.query.state) {
@@ -391,6 +418,151 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
     }
     
     res.redirect(redirectUrl);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const { firstName, lastName } = req.body;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { firstName, lastName },
+      select: { id: true, email: true, role: true, firstName: true, lastName: true, createdAt: true }
+    });
+
+    res.json({ message: 'Profile updated successfully', user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updatePassword = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const isOAuthUser = !user.passwordHash;
+
+    if (isOAuthUser) {
+      // OAuth user (e.g. Google) — no existing password, allow setting one directly
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash }
+      });
+      return res.json({ message: 'Password set successfully' });
+    } else {
+      // Local auth user — must verify their current password first
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required to change your password' });
+      }
+
+      const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash!);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Invalid current password' });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 10);
+      await prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash }
+      });
+      return res.json({ message: 'Password changed successfully' });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteAccount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const { email, password, confirmationText } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Step 1 — Always verify the email matches (prevents token misuse)
+    if (user.email !== email) {
+      return res.status(400).json({ error: 'Email does not match your account' });
+    }
+
+    const isOAuthUser = !user.passwordHash;
+
+    if (isOAuthUser) {
+      // OAuth path — no password to verify, require explicit "DELETE" confirmation text instead
+      if (!confirmationText || confirmationText.trim().toUpperCase() !== 'DELETE') {
+        return res.status(400).json({ error: 'Please type DELETE to confirm account deletion' });
+      }
+    } else {
+      // Local auth path — verify password
+      if (!password) {
+        return res.status(400).json({ error: 'Password is required to delete your account' });
+      }
+      const isPasswordValid = await bcrypt.compare(password, user.passwordHash!);
+      if (!isPasswordValid) {
+        return res.status(401).json({ error: 'Invalid password' });
+      }
+    }
+
+    // Revoke Refresh Token if present
+    const { refreshToken } = req.cookies;
+    if (refreshToken) {
+      const hashedRT = hashToken(refreshToken);
+      await prisma.refreshToken.updateMany({
+        where: { tokenHash: hashedRT },
+        data: { isRevoked: true }
+      });
+    }
+
+    // Revoke Access Token
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const accessToken = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.decode(accessToken) as jwt.JwtPayload;
+        if (decoded && decoded.exp) {
+          const expiresAt = new Date(decoded.exp * 1000);
+          const hashedAT = hashToken(accessToken);
+          
+          await prisma.revokedAccessToken.upsert({
+            where: { tokenHash: hashedAT },
+            update: {},
+            create: {
+              tokenHash: hashedAT,
+              expiresAt
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to parse access token during account deletion');
+      }
+    }
+
+    // Clear cookie
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax'
+    });
+
+    // Delete user (cascades to related data via Prisma schema)
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({ message: 'Account permanently deleted' });
   } catch (error) {
     next(error);
   }

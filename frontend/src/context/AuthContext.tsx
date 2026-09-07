@@ -5,6 +5,9 @@ interface User {
   id: string;
   email: string;
   role: string;
+  firstName?: string;
+  lastName?: string;
+  hasPassword?: boolean; // false for OAuth-only users who haven't set a password yet
 }
 
 interface AuthContextType {
@@ -12,6 +15,7 @@ interface AuthContextType {
   user: User | null;
   login: (token: string, user: User) => void;
   logout: () => void;
+  updateUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -76,13 +80,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setIsAuthenticated(false);
   }, []);
 
+  const updateUser = React.useCallback((updatedUser: User) => {
+    setUser(updatedUser);
+  }, []);
+
   if (isInitializing) {
     // Optional: Return a loading spinner or null while checking session
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-main)' }}>Loading...</div>;
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
