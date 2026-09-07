@@ -150,6 +150,54 @@ async function main() {
           { url: '/images/nylon_leash_1787664641203.png', isPrimary: true }
         ]
       }
+    },
+    {
+      name: 'Luxury Pet Travel Carrier',
+      description: 'Airline approved, stylish and breathable carrier for small dogs and cats.',
+      price: 89.99,
+      stockQuantity: 40,
+      categoryId: accessoryCategory.id,
+      brand: 'Aurelia',
+      weightMetric: 3.5,
+      rating: 4.9,
+      reviewCount: 310,
+      images: {
+        create: [
+          { url: 'http://localhost:3000/uploads/image-1788787629632-123456781.png', isPrimary: true }
+        ]
+      }
+    },
+    {
+      name: 'Felix & Co. Laser Pointer Toy',
+      description: 'Interactive sleek laser pointer toy to keep your pets entertained for hours.',
+      price: 19.50,
+      stockQuantity: 150,
+      categoryId: toyCategory.id,
+      brand: 'Felix & Co.',
+      weightMetric: 0.2,
+      rating: 4.8,
+      reviewCount: 425,
+      images: {
+        create: [
+          { url: 'http://localhost:3000/uploads/image-1788787650779-123456782.png', isPrimary: true }
+        ]
+      }
+    },
+    {
+      name: 'Feline Finery Salmon Treats',
+      description: 'Premium salmon flavor cat treats made with real Atlantic salmon.',
+      price: 14.99,
+      stockQuantity: 300,
+      categoryId: foodCategory.id,
+      brand: 'Feline Finery',
+      weightMetric: 0.3,
+      rating: 4.7,
+      reviewCount: 289,
+      images: {
+        create: [
+          { url: 'http://localhost:3000/uploads/image-1788787670706-123456783.png', isPrimary: true }
+        ]
+      }
     }
   ];
 

@@ -21,9 +21,11 @@ const Account: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   
-  // Order filters
+  // Order filters and sorting
   const [orderStatusFilter, setOrderStatusFilter] = useState('All');
   const [orderDaysFilter, setOrderDaysFilter] = useState('All');
+  const [orderSortBy, setOrderSortBy] = useState('date');
+  const [orderSortOrder, setOrderSortOrder] = useState('desc');
   
   const [addresses, setAddresses] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
@@ -36,6 +38,8 @@ const Account: React.FC = () => {
         const queryParams = new URLSearchParams();
         if (orderStatusFilter !== 'All') queryParams.append('status', orderStatusFilter);
         if (orderDaysFilter !== 'All') queryParams.append('days', orderDaysFilter);
+        queryParams.append('sortBy', orderSortBy);
+        queryParams.append('sortOrder', orderSortOrder);
         
         const res = await api.get(`/orders?${queryParams.toString()}`);
         setOrders(res.data);
@@ -62,7 +66,7 @@ const Account: React.FC = () => {
     if (activeTab === 'orders' || activeTab === 'dashboard') fetchOrders();
     if (activeTab === 'address') fetchAddresses();
     if (activeTab === 'payments') fetchPaymentMethods();
-  }, [activeTab, orderStatusFilter, orderDaysFilter]);
+  }, [activeTab, orderStatusFilter, orderDaysFilter, orderSortBy, orderSortOrder]);
 
   const handleCancelOrder = async (orderId: string) => {
     try {
@@ -71,6 +75,8 @@ const Account: React.FC = () => {
       const queryParams = new URLSearchParams();
       if (orderStatusFilter !== 'All') queryParams.append('status', orderStatusFilter);
       if (orderDaysFilter !== 'All') queryParams.append('days', orderDaysFilter);
+      queryParams.append('sortBy', orderSortBy);
+      queryParams.append('sortOrder', orderSortOrder);
       const res = await api.get(`/orders?${queryParams.toString()}`);
       setOrders(res.data);
     } catch (err) {
@@ -407,28 +413,51 @@ const Account: React.FC = () => {
           <h1 style={{ fontSize: '2rem', margin: 0 }}>My Orders</h1>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <select 
-            value={orderStatusFilter} 
-            onChange={e => setOrderStatusFilter(e.target.value)}
-            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
-          >
-            <option value="All">All Statuses</option>
-            <option value="Pending Payment">Pending Payment</option>
-            <option value="Payment Successful">Payment Successful</option>
-            <option value="Refund Processing">Refund Processing</option>
-            <option value="Refunded">Refunded</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-          <select 
-            value={orderDaysFilter} 
-            onChange={e => setOrderDaysFilter(e.target.value)}
-            style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
-          >
-            <option value="All">All Time</option>
-            <option value="30">Last 30 Days</option>
-            <option value="180">Last 6 Months</option>
-          </select>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Filter:</span>
+            <select 
+              value={orderStatusFilter} 
+              onChange={e => setOrderStatusFilter(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
+            >
+              <option value="All">All Statuses</option>
+              <option value="Pending Payment">Pending</option>
+              <option value="Payment Successful">Successful</option>
+              <option value="Refund Processing">Refund Proc.</option>
+              <option value="Refunded">Refunded</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+            <select 
+              value={orderDaysFilter} 
+              onChange={e => setOrderDaysFilter(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
+            >
+              <option value="All">All Time</option>
+              <option value="30">Last 30 Days</option>
+              <option value="180">Last 6 Months</option>
+            </select>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Sort:</span>
+            <select 
+              value={orderSortBy} 
+              onChange={e => setOrderSortBy(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
+            >
+              <option value="date">Date</option>
+              <option value="status">Status</option>
+            </select>
+            <select 
+              value={orderSortOrder} 
+              onChange={e => setOrderSortOrder(e.target.value)}
+              style={{ padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text-h)' }}
+            >
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </select>
+          </div>
         </div>
       </div>
       

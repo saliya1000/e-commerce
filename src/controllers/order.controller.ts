@@ -138,7 +138,7 @@ export const getOrders = async (req: Request, res: Response) => {
       return;
     }
 
-    const { status, days } = req.query;
+    const { status, days, sortBy = 'date', sortOrder = 'desc' } = req.query;
     let whereClause: any = { userId };
     
     if (status && status !== 'All') {
@@ -154,10 +154,18 @@ export const getOrders = async (req: Request, res: Response) => {
       }
     }
 
+    let orderByClause: any = { createdAt: 'desc' };
+    const orderDirection = sortOrder === 'asc' ? 'asc' : 'desc';
+    if (sortBy === 'status') {
+      orderByClause = { status: orderDirection };
+    } else {
+      orderByClause = { createdAt: orderDirection };
+    }
+
     const orders = await prisma.order.findMany({
       where: whereClause,
       include: { items: { include: { product: { include: { images: true } } } } },
-      orderBy: { createdAt: 'desc' }
+      orderBy: orderByClause
     });
 
     res.json(orders);

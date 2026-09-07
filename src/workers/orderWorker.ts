@@ -2,6 +2,7 @@ import { getChannel } from '../utils/amqp';
 import prisma from '../prisma';
 import { sendEmail } from '../utils/mailer';
 import { generateOrderEmailHtml, generatePaymentFailedEmailHtml } from '../utils/emailTemplates';
+import { publishRefundStatus } from '../utils/amqp';
 
 const QUEUE_NAME = 'payment_status_updates';
 
@@ -43,16 +44,41 @@ export const startOrderWorker = async () => {
             data: { status: 'Payment Successful' }
           });
           
-          // 2. Decrement Stock within a transaction if possible, or sequentially
-          for (const item of order.items) {
-            await prisma.product.update({
-              where: { id: item.productId },
-              data: {
-                stockQuantity: {
-                  decrement: item.quantity
+          // 2. Decrement Stock with Concurrency Check
+          let stockDeductionFailed = false;
+          try {
+            await prisma.$transaction(async (tx) => {
+              for (const item of order.items) {
+                const result = await tx.product.updateMany({
+                  where: { 
+                    id: item.productId,
+                    stockQuantity: { gte: item.quantity }
+                  },
+                  data: {
+                    stockQuantity: { decrement: item.quantity }
+                  }
+                });
+                
+                if (result.count === 0) {
+                  throw new Error(`Insufficient stock for product ${item.productId}`);
                 }
               }
             });
+          } catch (error) {
+            stockDeductionFailed = true;
+          }
+
+          if (stockDeductionFailed) {
+            // Trigger Refund Processing due to out of stock
+            await prisma.order.update({
+              where: { id: orderId },
+              data: { status: 'Refund Processing' }
+            });
+            await publishRefundStatus(orderId, transactionId);
+            
+            // Acknowledge the message and exit early
+            channel.ack(msg);
+            return;
           }
 
           // 2.5 Clear the user's cart
