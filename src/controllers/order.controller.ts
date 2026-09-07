@@ -77,6 +77,37 @@ export const checkout = async (req: Request, res: Response) => {
       }
     });
 
+    // Save Address if requested by a logged in user
+    console.log(`[CHECKOUT] userId: ${userId}, saveAddress: ${req.body.saveAddress}`);
+    if (userId && req.body.saveAddress) {
+      console.log(`[CHECKOUT] Updating old addresses to not default...`);
+      // Set all other addresses for this user to not be default
+      await prisma.address.updateMany({
+        where: { userId },
+        data: { isDefault: false }
+      });
+
+      const nameParts = (shippingAddress.name || '').trim().split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+
+      console.log(`[CHECKOUT] Creating new address:`, { firstName, lastName, line1: shippingAddress.line1 });
+      const newAddr = await prisma.address.create({
+        data: {
+          userId,
+          firstName,
+          lastName,
+          addressLine1: shippingAddress.line1,
+          city: shippingAddress.city,
+          state: shippingAddress.state || 'N/A',
+          postalCode: shippingAddress.postal_code,
+          country: shippingAddress.country,
+          isDefault: true
+        }
+      });
+      console.log(`[CHECKOUT] Address created:`, newAddr.id);
+    }
+
     // Do NOT clear the cart here. 
     // The cart should only be cleared when payment is successful (handled in orderWorker).
 

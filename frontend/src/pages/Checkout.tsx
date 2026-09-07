@@ -66,9 +66,12 @@ const Checkout: React.FC = () => {
     email: user?.email || '',
     line1: '',
     city: '',
+    state: '',
     postal_code: '',
     country: 'US',
   });
+
+  const [saveAddress, setSaveAddress] = useState(true);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -77,6 +80,7 @@ const Checkout: React.FC = () => {
     email: z.string().email('Invalid email address'),
     line1: z.string().min(1, 'Address is required'),
     city: z.string().min(1, 'City is required'),
+    state: z.string().min(1, 'State is required'),
     postal_code: z.string().regex(/^[A-Za-z0-9\s-]{3,10}$/, 'Invalid postal code format'),
     country: z.string().min(1, 'Country is required')
   });
@@ -94,9 +98,12 @@ const Checkout: React.FC = () => {
              email: user.email || '',
              line1: defaultAddr.addressLine1,
              city: defaultAddr.city,
+             state: defaultAddr.state,
              postal_code: defaultAddr.postalCode,
              country: defaultAddr.country
            });
+        } else {
+           setSaveAddress(true);
         }
       }).catch(err => console.error(err));
     }
@@ -137,7 +144,8 @@ const Checkout: React.FC = () => {
       const res = await api.post('/orders/checkout', {
         guestId,
         shippingAddress,
-        shippingMethod
+        shippingMethod,
+        saveAddress
       });
       setClientSecret(res.data.clientSecret);
       setOrderId(res.data.orderId);
@@ -162,6 +170,7 @@ const Checkout: React.FC = () => {
         email: user?.email || '',
         line1: addr.addressLine1,
         city: addr.city,
+        state: addr.state,
         postal_code: addr.postalCode,
         country: addr.country
       });
@@ -183,7 +192,7 @@ const Checkout: React.FC = () => {
             
             {/* When clientSecret is absent, show Form */}
             {!clientSecret ? (
-              <form onSubmit={handleContinueToPayment} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+              <form onSubmit={handleContinueToPayment} style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem', textAlign: 'left' }}>
                 
                 {/* 1. Contact & Shipping Info */}
                 <section>
@@ -206,7 +215,7 @@ const Checkout: React.FC = () => {
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
                     <div className="input-group">
                       <label>Full Name</label>
                       <input required type="text" name="name" value={shippingAddress.name} onChange={handleInputChange} placeholder="John Doe" />
@@ -223,23 +232,43 @@ const Checkout: React.FC = () => {
                     <input required type="text" name="line1" value={shippingAddress.line1} onChange={handleInputChange} placeholder="123 Happy St" />
                     {formErrors.line1 && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.line1}</span>}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem', marginTop: '1.25rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
                     <div className="input-group">
                       <label>City</label>
                       <input required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} />
                       {formErrors.city && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.city}</span>}
                     </div>
                     <div className="input-group">
+                      <label>State / Province</label>
+                      <input required type="text" name="state" value={shippingAddress.state} onChange={handleInputChange} />
+                      {formErrors.state && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.state}</span>}
+                    </div>
+                    <div className="input-group">
                       <label>Postal Code</label>
                       <input required type="text" name="postal_code" value={shippingAddress.postal_code} onChange={handleInputChange} />
                       {formErrors.postal_code && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.postal_code}</span>}
                     </div>
-                    <div className="input-group">
-                      <label>Country</label>
-                      <input required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} />
-                      {formErrors.country && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.country}</span>}
-                    </div>
                   </div>
+                  <div className="input-group" style={{ marginTop: '1.25rem' }}>
+                    <label>Country</label>
+                    <input required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} />
+                    {formErrors.country && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.country}</span>}
+                  </div>
+                  
+                  {user && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.25rem' }}>
+                      <input 
+                        type="checkbox" 
+                        id="saveAddress" 
+                        checked={saveAddress} 
+                        onChange={(e) => setSaveAddress(e.target.checked)} 
+                        style={{ width: 'auto', accentColor: '#20B2AA' }} 
+                      />
+                      <label htmlFor="saveAddress" style={{ margin: 0, color: 'var(--text-main)', cursor: 'pointer' }}>
+                        Save this as my default shipping address
+                      </label>
+                    </div>
+                  )}
                 </section>
 
                 <hr style={{ borderTop: '1px solid var(--border-color)' }} />

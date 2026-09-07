@@ -62,6 +62,12 @@ const prisma = basePrisma.$extends({
              // decrypt to JSON object for application layer
              ord.shippingAddress = decryptJson(ord.shippingAddress);
           }
+          if (ord.payments && Array.isArray(ord.payments)) {
+             ord.payments = ord.payments.map((pay: any) => {
+                 if (pay.transactionId) pay.transactionId = decrypt(pay.transactionId);
+                 return pay;
+             });
+          }
           return ord;
         };
 

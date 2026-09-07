@@ -27,9 +27,9 @@ app.use(cors({
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  max: 1000, // Limit each IP to 1000 requests per windowMs
 });
-app.use(limiter);
+app.use('/api', limiter);
 
 // Stripe webhook needs raw body, mount before json body parser
 app.use('/api/payments', paymentRoutes);
