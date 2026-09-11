@@ -88,7 +88,7 @@ async function main() {
           totalAmount: Number(product.price) + 5.0, // price + shipping
           shippingCost: 5.0,
           shippingMethod: 'standard',
-          shippingAddress: {
+          shippingAddress: JSON.stringify({
             firstName: 'John',
             lastName: 'Doe',
             addressLine1: '123 Main St',
@@ -96,7 +96,7 @@ async function main() {
             state: 'NY',
             postalCode: '10001',
             country: 'USA',
-          },
+          }),
         },
       });
 

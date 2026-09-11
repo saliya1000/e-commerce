@@ -31,6 +31,12 @@ This single command will:
 4. Build the React frontend container using Nginx and serve it on `http://localhost:5173`.
 5. Start the Mailhog container for local email testing.
 
+**Important:** The database will initially be empty. To populate it with mock users and products, run the seed script inside the `api` container:
+
+```bash
+docker-compose exec api npx prisma db seed
+```
+
 ## Local Email Testing
 All outgoing emails (Order Confirmations, Payment Statuses, etc.) are intercepted locally by **Mailhog** so they don't actually send to real inboxes during testing. 
 To view intercepted emails, simply open a new browser tab and navigate to the Mailhog Web UI:
