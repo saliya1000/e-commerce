@@ -213,7 +213,19 @@ const ProductList: React.FC = () => {
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : error ? (
-            <div className="error-text">{error}</div>
+            <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem', border: '1px solid rgba(255, 77, 79, 0.3)' }}>
+              <h2 style={{ marginBottom: '1rem', color: '#ff4d4f' }}>Oops! Something went wrong.</h2>
+              <p className="text-muted" style={{ marginBottom: '1.5rem' }}>We're having trouble loading the products right now. Please check your connection or try again later.</p>
+              <button 
+                onClick={fetchProducts}
+                style={{
+                  padding: '0.75rem 1.5rem', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                  background: 'var(--primary)', color: 'white', fontWeight: 600, transition: 'all 0.2s'
+                }}
+              >
+                Try Again
+              </button>
+            </div>
           ) : products.length === 0 ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
               <h2 style={{ marginBottom: '1rem' }}>No products found</h2>
