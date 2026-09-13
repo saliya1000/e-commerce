@@ -246,7 +246,7 @@ const Checkout: React.FC = () => {
                     </div>
                     <div className="input-group">
                       <label>Email Address</label>
-                      <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" />
+                      <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" readOnly={!!user} style={user ? { backgroundColor: 'var(--color-bg-alt, #f9fafb)', cursor: 'not-allowed', color: 'var(--color-text-light, #6b7280)' } : {}} />
                       {formErrors.email && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.email}</span>}
                     </div>
                   </div>
