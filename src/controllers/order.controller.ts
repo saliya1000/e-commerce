@@ -99,7 +99,6 @@ export const checkout = async (req: Request, res: Response) => {
           lastName,
           addressLine1: shippingAddress.line1,
           city: shippingAddress.city,
-          state: shippingAddress.state || 'N/A',
           postalCode: shippingAddress.postal_code,
           country: shippingAddress.country,
           isDefault: true

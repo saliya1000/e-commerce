@@ -90,7 +90,6 @@ const Checkout: React.FC = () => {
     phone: '',
     line1: '',
     city: '',
-    state: '',
     postal_code: '',
     country: 'Finland',
   });
@@ -105,7 +104,6 @@ const Checkout: React.FC = () => {
     phone: z.string().regex(/^\+358[\s-]?\d{1,4}([\s-]?\d{2,4}){1,2}$/, 'Phone number must be a valid Finnish number starting with +358'),
     line1: z.string().min(1, 'Address is required'),
     city: z.string().min(1, 'City is required'),
-    state: z.string().min(1, 'State is required'),
     postal_code: z.string().regex(/^\d{5}$/, 'Finnish postal codes must be exactly 5 digits'),
     country: z.string().min(1, 'Country is required').regex(/^(finland|fi)$/i, 'We currently only ship to Finland')
   });
@@ -124,7 +122,6 @@ const Checkout: React.FC = () => {
              phone: '', // Saved addresses don't have phone numbers in DB currently
              line1: defaultAddr.addressLine1,
              city: defaultAddr.city,
-             state: defaultAddr.state,
              postal_code: defaultAddr.postalCode,
              country: defaultAddr.country
            });
@@ -197,7 +194,6 @@ const Checkout: React.FC = () => {
         phone: '', // Saved addresses don't have phone numbers in DB currently
         line1: addr.addressLine1,
         city: addr.city,
-        state: addr.state,
         postal_code: addr.postalCode,
         country: addr.country
       });
@@ -269,11 +265,6 @@ const Checkout: React.FC = () => {
                       <label>City</label>
                       <input required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} />
                       {formErrors.city && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.city}</span>}
-                    </div>
-                    <div className="input-group">
-                      <label>State / Province</label>
-                      <input required type="text" name="state" value={shippingAddress.state} onChange={handleInputChange} />
-                      {formErrors.state && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.state}</span>}
                     </div>
                     <div className="input-group">
                       <label>Postal Code</label>

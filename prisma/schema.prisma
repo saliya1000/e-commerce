@@ -182,7 +182,6 @@ model Address {
   addressLine1 String   // Encrypted
   addressLine2 String?  // Encrypted
   city         String   // Encrypted
-  state        String   // Encrypted
   postalCode   String   // Encrypted
   country      String
   isDefault    Boolean  @default(false)

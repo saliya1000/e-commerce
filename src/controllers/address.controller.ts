@@ -23,9 +23,9 @@ export const createAddress = async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const { firstName, lastName, addressLine1, addressLine2, city, state, postalCode, country, isDefault } = req.body;
+    const { firstName, lastName, addressLine1, addressLine2, city, postalCode, country, isDefault } = req.body;
 
-    if (!firstName || !lastName || !addressLine1 || !city || !state || !postalCode || !country) {
+    if (!firstName || !lastName || !addressLine1 || !city || !postalCode || !country) {
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -44,7 +44,6 @@ export const createAddress = async (req: Request, res: Response) => {
         addressLine1,
         addressLine2,
         city,
-        state,
         postalCode,
         country,
         isDefault: isDefault || false,
