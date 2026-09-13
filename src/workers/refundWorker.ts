@@ -21,7 +21,7 @@ export const startRefundWorker = async () => {
       console.log(`[REFUND WORKER] Received message: ${content}`);
       
       try {
-        const { orderId, transactionId } = JSON.parse(content);
+        const { orderId, transactionId, stockDeducted } = JSON.parse(content);
         
         const order = await prisma.order.findUnique({
           where: { id: orderId },
@@ -58,15 +58,17 @@ export const startRefundWorker = async () => {
         });
         
         // 2. Increment Stock (restore inventory)
-        for (const item of order.items) {
-          await prisma.product.update({
-            where: { id: item.productId },
-            data: {
-              stockQuantity: {
-                increment: item.quantity
+        if (stockDeducted !== false) {
+          for (const item of order.items) {
+            await prisma.product.update({
+              where: { id: item.productId },
+              data: {
+                stockQuantity: {
+                  increment: item.quantity
+                }
               }
-            }
-          });
+            });
+          }
         }
 
         // 3. Send Refund Email

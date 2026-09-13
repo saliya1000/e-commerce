@@ -39,9 +39,9 @@ export const publishPaymentStatus = async (orderId: string, event: string, trans
   console.log(`[AMQP] Published payment status for order ${orderId}: ${event}`);
 };
 
-export const publishRefundStatus = async (orderId: string, paymentTransactionId?: string) => {
+export const publishRefundStatus = async (orderId: string, paymentTransactionId?: string, stockDeducted: boolean = true) => {
   if (!channel) return;
-  const message = JSON.stringify({ orderId, transactionId: paymentTransactionId });
+  const message = JSON.stringify({ orderId, transactionId: paymentTransactionId, stockDeducted });
   channel.sendToQueue(REFUND_QUEUE, Buffer.from(message), { persistent: true });
   console.log(`[AMQP] Published refund request for order ${orderId}`);
 };

@@ -14,6 +14,7 @@ const prisma = basePrisma.$extends({
           if (data.city) data.city = encrypt(data.city as string);
           if (data.state) data.state = encrypt(data.state as string);
           if (data.postalCode) data.postalCode = encrypt(data.postalCode as string);
+          if (data.phoneNumber) data.phoneNumber = encrypt(data.phoneNumber as string);
         }
         
         // Handle nested create/update payloads if necessary...
@@ -28,6 +29,7 @@ const prisma = basePrisma.$extends({
           if (addr.city) addr.city = decrypt(addr.city);
           if (addr.state) addr.state = decrypt(addr.state);
           if (addr.postalCode) addr.postalCode = decrypt(addr.postalCode);
+          if (addr.phoneNumber) addr.phoneNumber = decrypt(addr.phoneNumber);
           return addr;
         };
 

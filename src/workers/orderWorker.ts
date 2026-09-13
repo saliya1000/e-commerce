@@ -38,6 +38,12 @@ export const startOrderWorker = async () => {
         const customerEmail = order.user?.email || shippingAddress.email;
         
         if (event === 'PAYMENT_SUCCESS') {
+          if (order.status !== 'Pending Payment') {
+            console.log(`[ORDER WORKER] Order ${orderId} already processed (status: ${order.status}), skipping PAYMENT_SUCCESS`);
+            channel.ack(msg);
+            return;
+          }
+
           // 1. Update Order Status
           await prisma.order.update({
             where: { id: orderId },
@@ -74,7 +80,7 @@ export const startOrderWorker = async () => {
               where: { id: orderId },
               data: { status: 'Refund Processing' }
             });
-            await publishRefundStatus(orderId, transactionId);
+            await publishRefundStatus(orderId, transactionId, false);
             
             // Acknowledge the message and exit early
             channel.ack(msg);
