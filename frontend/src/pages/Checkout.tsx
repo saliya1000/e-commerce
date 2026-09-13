@@ -22,27 +22,38 @@ const CheckoutForm = ({ orderId, onCancel }: { orderId: string, onCancel: () => 
     if (!stripe || !elements) return;
 
     setProcessing(true);
-    const result = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/order-confirmation?orderId=${orderId}`,
-      },
-    });
+    setError(null);
 
-    if (result.error) {
-      let customMessage = result.error.message || 'An unexpected error occurred.';
+    try {
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/order-confirmation?orderId=${orderId}`,
+        },
+      });
 
-      if (result.error.type === 'api_connection_error') {
-        customMessage = 'Payment gateway timeout. Please try again.';
-      } else if (result.error.code === 'invalid_number') {
-        customMessage = 'Invalid card number error. Please verify your card details.';
-      } else if (result.error.code === 'expired_card') {
-        customMessage = 'Expired card error. Please use a valid card.';
-      } else if (result.error.decline_code === 'insufficient_funds' || result.error.code === 'insufficient_funds') {
-        customMessage = 'Insufficient funds error. Please try a different payment method.';
+      if (result.error) {
+        let customMessage = result.error.message || 'An unexpected error occurred.';
+
+        if (result.error.type === 'api_connection_error') {
+          customMessage = 'Payment gateway timeout. Please try again.';
+        } else if (result.error.code === 'invalid_number') {
+          customMessage = 'Invalid card number error. Please verify your card details.';
+        } else if (result.error.code === 'expired_card') {
+          customMessage = 'Expired card error. Please use a valid card.';
+        } else if (result.error.decline_code === 'insufficient_funds' || result.error.code === 'insufficient_funds') {
+          customMessage = 'Insufficient funds error. Please try a different payment method.';
+        }
+
+        setError(customMessage);
+        setProcessing(false);
+      } else {
+        // Fallback in case stripe doesn't automatically redirect
+        setProcessing(false);
       }
-
-      setError(customMessage);
+    } catch (err: any) {
+      console.error('Payment confirmation error:', err);
+      setError(err.message || 'An unexpected error occurred during payment confirmation.');
       setProcessing(false);
     }
   };
