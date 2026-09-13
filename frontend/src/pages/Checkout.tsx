@@ -102,12 +102,12 @@ const Checkout: React.FC = () => {
   const shippingAddressSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     email: z.string().email('Invalid email address'),
-    phone: z.string().regex(/^\+?[0-9\s-]{7,15}$/, 'Invalid phone format'),
+    phone: z.string().regex(/^\+358[\s-]?\d{1,4}([\s-]?\d{2,4}){1,2}$/, 'Phone number must be a valid Finnish number starting with +358'),
     line1: z.string().min(1, 'Address is required'),
     city: z.string().min(1, 'City is required'),
     state: z.string().min(1, 'State is required'),
-    postal_code: z.string().regex(/^[A-Za-z0-9\s-]{3,10}$/, 'Invalid postal code format'),
-    country: z.string().min(1, 'Country is required')
+    postal_code: z.string().regex(/^\d{5}$/, 'Finnish postal codes must be exactly 5 digits'),
+    country: z.string().min(1, 'Country is required').regex(/^(finland|fi)$/i, 'We currently only ship to Finland')
   });
 
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -256,7 +256,7 @@ const Checkout: React.FC = () => {
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
                     <label>Phone Number</label>
-                    <input required type="tel" name="phone" value={shippingAddress.phone} onChange={handleInputChange} placeholder="+1 234 567 8900" />
+                    <input required type="tel" name="phone" value={shippingAddress.phone} onChange={handleInputChange} placeholder="+358 40 123 4567" />
                     {formErrors.phone && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.phone}</span>}
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
