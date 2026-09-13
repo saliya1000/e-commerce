@@ -67,8 +67,11 @@ export const addToCart = async (req: Request, res: Response) => {
     const requestedQuantity = quantity || 1;
     const totalCartQuantity = (existingItem?.quantity || 0) + requestedQuantity;
 
-    if (totalCartQuantity > product.stockQuantity) {
-      res.status(400).json({ message: `Not enough stock available for ${product.name}` });
+    if (product.stockQuantity === 0 || totalCartQuantity > product.stockQuantity) {
+      res.status(400).json({ 
+        success: false, 
+        message: "Sorry, this item is currently out of stock or requested quantity exceeds available stock." 
+      });
       return;
     }
 
