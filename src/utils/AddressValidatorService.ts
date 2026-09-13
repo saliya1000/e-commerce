@@ -8,7 +8,7 @@ export class AddressValidatorService {
       return { isValid: false, message: 'Shipping address is required.' };
     }
 
-    const { line1, city, postal_code, country } = shippingAddress;
+    const { line1, city, postal_code, country, phone } = shippingAddress;
 
     if (!line1 || typeof line1 !== 'string' || line1.trim() === '') {
       return { isValid: false, message: 'Street address (line1) is required and cannot be empty.' };
@@ -35,6 +35,16 @@ export class AddressValidatorService {
     const postalCodeRegex = /^\d{5}$/;
     if (!postalCodeRegex.test(postal_code.trim())) {
       return { isValid: false, message: 'Invalid postal code. Finnish postal codes must be exactly 5 digits.' };
+    }
+
+    if (!phone || typeof phone !== 'string' || phone.trim() === '') {
+      return { isValid: false, message: 'Phone number is required.' };
+    }
+
+    // Finnish phone number validation: starts with +358 followed by 4 to 12 digits
+    const cleanPhone = phone.replace(/[\s-]/g, '');
+    if (!/^\+358\d{4,12}$/.test(cleanPhone)) {
+      return { isValid: false, message: 'Phone number must be a valid Finnish number starting with +358.' };
     }
 
     // Existing checks for fake addresses
