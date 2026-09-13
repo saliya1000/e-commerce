@@ -119,7 +119,7 @@ const Checkout: React.FC = () => {
            setShippingAddress({
              name: `${defaultAddr.firstName} ${defaultAddr.lastName}`,
              email: user.email || '',
-             phone: '', // Saved addresses don't have phone numbers in DB currently
+             phone: defaultAddr.phoneNumber || '',
              line1: defaultAddr.addressLine1,
              city: defaultAddr.city,
              postal_code: defaultAddr.postalCode,
@@ -191,7 +191,7 @@ const Checkout: React.FC = () => {
       setShippingAddress({
         name: `${addr.firstName} ${addr.lastName}`,
         email: user?.email || '',
-        phone: '', // Saved addresses don't have phone numbers in DB currently
+        phone: addr.phoneNumber || '',
         line1: addr.addressLine1,
         city: addr.city,
         postal_code: addr.postalCode,

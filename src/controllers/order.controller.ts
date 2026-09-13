@@ -100,6 +100,7 @@ export const checkout = async (req: Request, res: Response) => {
           addressLine1: shippingAddress.line1,
           city: shippingAddress.city,
           postalCode: shippingAddress.postal_code,
+          phoneNumber: shippingAddress.phone,
           country: shippingAddress.country,
           isDefault: true
         }

@@ -183,6 +183,7 @@ model Address {
   addressLine2 String?  // Encrypted
   city         String   // Encrypted
   postalCode   String   // Encrypted
+  phoneNumber  String?  // Encrypted
   country      String
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
