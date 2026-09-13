@@ -22,14 +22,19 @@ export class AddressValidatorService {
       return { isValid: false, message: 'Country is required and cannot be empty.' };
     }
 
+    const validCountries = ['finland', 'fi'];
+    if (!validCountries.includes(country.trim().toLowerCase())) {
+      return { isValid: false, message: 'We currently only ship to Finland. Please select Finland as your country.' };
+    }
+
     if (!postal_code || typeof postal_code !== 'string' || postal_code.trim() === '') {
       return { isValid: false, message: 'Postal code is required and cannot be empty.' };
     }
 
-    // Basic format validation for postalCode (alphanumeric with optional spaces or hyphens, e.g. "12345", "SW1A 1AA", "90210-1234")
-    const postalCodeRegex = /^[A-Za-z0-9\s\-]+$/;
+    // Finnish postal code validation: exactly 5 digits
+    const postalCodeRegex = /^\d{5}$/;
     if (!postalCodeRegex.test(postal_code.trim())) {
-      return { isValid: false, message: 'Postal code format is invalid. It should contain only letters, numbers, spaces, or hyphens.' };
+      return { isValid: false, message: 'Invalid postal code. Finnish postal codes must be exactly 5 digits.' };
     }
 
     // Existing checks for fake addresses
