@@ -13,7 +13,7 @@ async function main() {
 
   console.log('Creating Admin & Customer Users...');
   const passwordHash = await bcrypt.hash('Password123!', 10);
-  
+
   await prisma.user.create({
     data: {
       email: 'admin@happypets.com',
@@ -53,13 +53,13 @@ async function main() {
   });
 
   console.log('Creating Products...');
-  
+
   const products = [
     {
       name: 'HappyPaws Organic Dog Kibble',
       description: 'Grain-free, organic chicken recipe for adult dogs.',
       price: 45.99,
-      stockQuantity: 100,
+      stockQuantity: 0,
       categoryId: foodCategory.id,
       brand: 'HappyPaws',
       weightMetric: 15.0,
