@@ -77,6 +77,18 @@ Features available in the UI:
 - Address Book management endpoints.
 - Payment Methods management endpoints.
 
+## Testing
+
+The project includes a comprehensive suite of unit and integration tests using Jest and Supertest.
+
+To run the test suite locally on your host machine, make sure your Docker containers are running (so the test database is accessible) and run the following command:
+
+```bash
+npm run test:local
+```
+
+**Note:** You must use `npm run test:local` instead of just `npm run test` when testing outside of Docker. The `test:local` script automatically configures the database connection URL to target the exposed port (`localhost:5433`) on your local machine, whereas the default script assumes it is running inside the Docker network.
+
 ## Entity Relationship Diagram (ERD)
 
 The database schema guarantees ACID properties through PostgreSQL. Below is the core Entity Relationship Diagram:
