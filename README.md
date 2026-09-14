@@ -79,15 +79,15 @@ Features available in the UI:
 
 ## Testing
 
-The project includes a comprehensive suite of unit and integration tests using Jest and Supertest.
+The project includes a comprehensive suite of unit and integration tests using Jest and Supertest. Tests now run against a completely isolated test database (`happypets_test`) to prevent accidental data loss in your development database.
 
-To run the test suite locally on your host machine, make sure your Docker containers are running (so the test database is accessible) and run the following command:
+To run the test suite locally on your host machine, make sure your Docker containers are running (so the database server is accessible) and run the following command:
 
 ```bash
 npm run test:local
 ```
 
-**Note:** You must use `npm run test:local` instead of just `npm run test` when testing outside of Docker. The `test:local` script automatically configures the database connection URL to target the exposed port (`localhost:5433`) on your local machine, whereas the default script assumes it is running inside the Docker network.
+This script will automatically load the `.env.test` file using `dotenv-cli`, run Prisma migrations to ensure your test database schema is up-to-date, and then safely run Jest. Test scripts now safely utilize `deleteMany({})` within integration tests without affecting the main development database.
 
 ## Entity Relationship Diagram (ERD)
 

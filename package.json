@@ -8,9 +8,9 @@
     "dev": "nodemon src/server.ts",
     "start": "node dist/server.js",
     "start:migrate:prod": "npx prisma migrate deploy && npm run start",
-    "test": "jest",
-    "test:local": "DATABASE_URL=\"postgresql://postgres:password@localhost:5433/e_commerce?schema=public\" jest",
-    "test:integration": "jest --config jest.integration.config.js"
+    "test": "dotenv -e .env.test -- npx prisma migrate deploy && dotenv -e .env.test -- jest",
+    "test:local": "dotenv -e .env.test -- npx prisma migrate deploy && dotenv -e .env.test -- jest",
+    "test:integration": "dotenv -e .env.test -- npx prisma migrate deploy && dotenv -e .env.test -- jest --config jest.integration.config.js"
   },
   "keywords": [],
   "author": "",
@@ -54,6 +54,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/speakeasy": "^2.0.10",
     "@types/supertest": "^7.2.1",
+    "dotenv-cli": "^11.0.0",
     "jest": "^30.4.2",
     "jest-mock-extended": "^4.0.0-beta1",
     "nodemon": "^3.1.14",

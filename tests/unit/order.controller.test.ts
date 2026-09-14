@@ -48,8 +48,9 @@ describe('Order Controller', () => {
         shippingAddress: {
           line1: '123 Main St',
           city: 'Anytown',
-          country: 'US',
-          postal_code: '90210'
+          country: 'Finland',
+          postal_code: '00100',
+          phone: '+358401234567'
         }
       }
     };

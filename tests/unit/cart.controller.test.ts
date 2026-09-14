@@ -51,7 +51,7 @@ describe('Cart Controller', () => {
 
       expect(prisma.cart.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user123' },
-        include: { items: { include: { product: { include: { images: true } } } } }
+        include: { items: { include: { product: { include: { images: true } } }, orderBy: { createdAt: 'asc' } } }
       });
       expect(mockRes.json).toHaveBeenCalledWith({ id: 'cart1', items: [] });
     });
