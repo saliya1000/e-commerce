@@ -189,7 +189,20 @@ const Checkout: React.FC = () => {
       setPendingOrderId(res.data.orderId);
     } catch (err: any) {
       console.error('Checkout failed', err);
-      setCheckoutError('Failed to initiate checkout. ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+      const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      
+      if (errorMsg && errorMsg.includes('verified by Google Maps')) {
+        setFormErrors({ line1: errorMsg });
+        setTimeout(() => {
+          const errorElement = document.querySelector(`[name="line1"]`) as HTMLElement;
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorElement.focus({ preventScroll: true });
+          }
+        }, 100);
+      } else {
+        setCheckoutError('Failed to initiate checkout. ' + errorMsg);
+      }
     } finally {
       setIsInitializingPayment(false);
       isSubmitting.current = false;

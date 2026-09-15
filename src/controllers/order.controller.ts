@@ -5,6 +5,7 @@ import { publishPaymentStatus } from '../utils/amqp';
 import { publishRefundStatus } from '../utils/amqp';
 import { calculateTotal } from '../utils/cartCalculations';
 import { AddressValidatorService } from '../utils/AddressValidatorService';
+import { validateAddressWithGoogle } from '../utils/googleMapsValidator';
 import { decrypt } from '../utils/encryption';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
@@ -42,6 +43,13 @@ export const checkout = async (req: Request, res: Response) => {
     const addressValidation = AddressValidatorService.validate(shippingAddress);
     if (!addressValidation.isValid) {
       res.status(400).json({ message: addressValidation.message });
+      return;
+    }
+
+    // Validate shipping address using Google Maps Address Validation API
+    const googleValidation = await validateAddressWithGoogle(shippingAddress);
+    if (!googleValidation.isValid) {
+      res.status(400).json({ message: googleValidation.message });
       return;
     }
 
