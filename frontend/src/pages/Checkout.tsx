@@ -101,11 +101,11 @@ const Checkout: React.FC = () => {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const shippingAddressSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
+    name: z.string().min(2, 'Name must be at least 2 characters long').regex(/\p{L}/u, 'Name must contain letters'),
     email: z.string().email('Invalid email address'),
     phone: z.string().regex(/^\+358[\s-]?\d{1,4}([\s-]?\d{2,4}){1,2}$/, 'Phone number must be a valid Finnish number starting with +358'),
-    line1: z.string().min(1, 'Address is required'),
-    city: z.string().min(1, 'City is required'),
+    line1: z.string().min(5, 'Address must be at least 5 characters long').regex(/\p{L}/u, 'Address must contain letters'),
+    city: z.string().min(1, 'City is required').regex(/\p{L}/u, 'City must contain letters'),
     postal_code: z.string().regex(/^\d{5}$/, 'Finnish postal codes must be exactly 5 digits'),
     country: z.string().min(1, 'Country is required').regex(/^(finland|fi)$/i, 'We currently only ship to Finland')
   });
@@ -156,6 +156,18 @@ const Checkout: React.FC = () => {
         }
       });
       setFormErrors(errors);
+      
+      // Scroll to the first error and focus the input
+      const firstErrorField = validationResult.error.issues[0]?.path[0] as string;
+      if (firstErrorField) {
+        setTimeout(() => {
+          const errorElement = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement;
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            errorElement.focus({ preventScroll: true });
+          }
+        }, 100);
+      }
       return;
     }
     setFormErrors({});

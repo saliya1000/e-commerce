@@ -8,14 +8,18 @@ export class AddressValidatorService {
       return { isValid: false, message: 'Shipping address is required.' };
     }
 
-    const { line1, city, postal_code, country, phone } = shippingAddress;
+    const { name, line1, city, postal_code, country, phone } = shippingAddress;
 
-    if (!line1 || typeof line1 !== 'string' || line1.trim() === '') {
-      return { isValid: false, message: 'Street address (line1) is required and cannot be empty.' };
+    if (!name || typeof name !== 'string' || name.trim().length < 2 || !/\p{L}/u.test(name)) {
+      return { isValid: false, message: 'Name is required, must be at least 2 characters long, and must contain letters.' };
     }
 
-    if (!city || typeof city !== 'string' || city.trim() === '') {
-      return { isValid: false, message: 'City is required and cannot be empty.' };
+    if (!line1 || typeof line1 !== 'string' || line1.trim().length < 5 || !/\p{L}/u.test(line1)) {
+      return { isValid: false, message: 'Street address (line1) must be at least 5 characters long and contain letters.' };
+    }
+
+    if (!city || typeof city !== 'string' || city.trim() === '' || !/\p{L}/u.test(city)) {
+      return { isValid: false, message: 'City is required and must contain letters.' };
     }
 
     if (!country || typeof country !== 'string' || country.trim() === '') {
