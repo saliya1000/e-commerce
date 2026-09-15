@@ -38,7 +38,7 @@ export const startOrderWorker = async () => {
         const customerEmail = order.user?.email || shippingAddress.email;
         
         if (event === 'PAYMENT_SUCCESS') {
-          if (order.status !== 'Pending Payment') {
+          if (order.status !== 'Pending Payment' && order.status !== 'Payment Failed') {
             console.log(`[ORDER WORKER] Order ${orderId} already processed (status: ${order.status}), skipping PAYMENT_SUCCESS`);
             channel.ack(msg);
             return;
@@ -78,7 +78,10 @@ export const startOrderWorker = async () => {
             // Trigger Refund Processing due to out of stock
             await prisma.order.update({
               where: { id: orderId },
-              data: { status: 'Refund Processing' }
+              data: { 
+                status: 'Refund Processing',
+                cancelReason: 'Insufficient stock for one or more items.'
+              }
             });
             await publishRefundStatus(orderId, transactionId, false);
             
@@ -131,8 +134,8 @@ export const startOrderWorker = async () => {
         channel.ack(msg);
       } catch (err) {
         console.error(`[ORDER WORKER] Error processing message:`, err);
-        // Nack to requeue or handle failure
-        channel.nack(msg, false, false); // No requeue for now to prevent loops on bad JSON
+        // Nack without requeueing routes the message to the DLQ configured in the exchange
+        channel.nack(msg, false, false);
       }
     }
   });

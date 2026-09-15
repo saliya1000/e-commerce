@@ -87,6 +87,7 @@ export const startRefundWorker = async () => {
         channel.ack(msg);
       } catch (err) {
         console.error(`[REFUND WORKER] Error processing message:`, err);
+        // Nack without requeueing routes the message to the DLQ
         channel.nack(msg, false, false);
       }
     }

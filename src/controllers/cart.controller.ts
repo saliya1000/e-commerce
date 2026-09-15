@@ -43,6 +43,11 @@ export const addToCart = async (req: Request, res: Response) => {
       return;
     }
 
+    if (quantity !== undefined && quantity <= 0) {
+      res.status(400).json({ message: 'Quantity must be greater than 0' });
+      return;
+    }
+
     let cart = await prisma.cart.findUnique({
       where: userId ? { userId } : { guestId },
     });
@@ -108,12 +113,14 @@ export const updateCartItem = async (req: Request, res: Response) => {
     const { quantity } = req.body;
 
     if (quantity <= 0) {
-      await prisma.cartItem.delete({ where: { id: id as string } });
-    } else {
-      const existingItem = await prisma.cartItem.findUnique({ 
-        where: { id: id as string },
-        include: { product: true }
-      });
+      res.status(400).json({ message: 'Quantity must be greater than 0' });
+      return;
+    }
+
+    const existingItem = await prisma.cartItem.findUnique({ 
+      where: { id: id as string },
+      include: { product: true }
+    });
 
       if (!existingItem) {
         res.status(404).json({ message: 'Cart item not found' });
@@ -129,7 +136,6 @@ export const updateCartItem = async (req: Request, res: Response) => {
         where: { id: id as string },
         data: { quantity }
       });
-    }
 
     res.json({ success: true });
   } catch (error) {

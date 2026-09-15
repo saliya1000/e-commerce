@@ -40,6 +40,9 @@ services:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/e_commerce?schema=public
+      - RABBITMQ_URL=amqp://rabbitmq:5672
     volumes:
       - ./uploads:/app/uploads
     depends_on:

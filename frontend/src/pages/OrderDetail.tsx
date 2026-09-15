@@ -13,7 +13,8 @@ const OrderDetail: React.FC = () => {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const res = await api.get(`/orders/${id}`);
+        const guestId = localStorage.getItem('guestId');
+        const res = await api.get(`/orders/${id}`, { params: { guestId } });
         setOrder(res.data);
       } catch (err) {
         console.error('Failed to fetch order', err);
@@ -28,9 +29,10 @@ const OrderDetail: React.FC = () => {
     if (!window.confirm('Are you sure you want to cancel this order?')) return;
     setCancelling(true);
     try {
-      await api.post(`/orders/${id}/cancel`);
+      const guestId = localStorage.getItem('guestId');
+      await api.post(`/orders/${id}/cancel`, { guestId });
       // Refetch
-      const res = await api.get(`/orders/${id}`);
+      const res = await api.get(`/orders/${id}`, { params: { guestId } });
       setOrder(res.data);
     } catch (err) {
       console.error('Failed to cancel order', err);
@@ -97,6 +99,11 @@ const OrderDetail: React.FC = () => {
               <div>
                 <strong style={{ display: 'block', fontSize: '1.1rem' }}>Order Cancelled</strong>
                 <span>{order.status === 'Refund Processing' ? 'A refund is currently being processed to your original payment method.' : (order.status === 'Refunded' ? 'Refund has been successfully issued.' : 'Order was cancelled before payment.')}</span>
+                {order.cancelReason && (
+                  <p style={{ marginTop: '0.5rem', marginBottom: 0, fontWeight: 500 }}>
+                    Reason: {order.cancelReason}
+                  </p>
+                )}
               </div>
             </div>
           ) : (

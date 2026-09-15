@@ -6,6 +6,65 @@ import {
   LayoutDashboard, Package, UserCircle, CreditCard, MapPin, Award, Bell, LogOut, Users, Lightbulb, Box, Plus, Trash2
 } from 'lucide-react';
 import api from '../services/api';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_dummy');
+
+const AddCardForm = ({ onCancel, onSaveSuccess }: { onCancel: () => void, onSaveSuccess: (data: any) => void }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDefault, setIsDefault] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+    setError('');
+
+    const { error: submitError, setupIntent } = await stripe.confirmSetup({
+      elements,
+      confirmParams: {
+        return_url: window.location.href,
+      },
+      redirect: 'if_required'
+    });
+
+    if (submitError) {
+      setError(submitError.message || 'An error occurred.');
+      setIsProcessing(false);
+    } else if (setupIntent && setupIntent.status === 'succeeded') {
+      try {
+        const res = await api.post('/payment-methods', {
+          paymentMethodId: setupIntent.payment_method,
+          isDefault
+        });
+        onSaveSuccess(res.data);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to sync payment method.');
+        setIsProcessing(false);
+      }
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <PaymentElement />
+      {error && <div style={{ color: 'var(--error, #ef4444)' }}>{error}</div>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+        <input type="checkbox" id="isDefaultCard" checked={isDefault} onChange={e => setIsDefault(e.target.checked)} style={{ width: 'auto' }} />
+        <label htmlFor="isDefaultCard" style={{ margin: 0 }}>Set as default payment method</label>
+      </div>
+      <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+        <button type="button" className="btn btn-outline" onClick={onCancel} disabled={isProcessing}>Cancel</button>
+        <button type="submit" className="btn" disabled={isProcessing || !stripe}>{isProcessing ? 'Saving...' : 'Save Card'}</button>
+      </div>
+    </form>
+  );
+};
 
 const Account: React.FC = () => {
   const { user } = useAuth();
@@ -52,6 +111,7 @@ const Account: React.FC = () => {
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [isAddingPayment, setIsAddingPayment] = useState(false);
+  const [setupIntentSecret, setSetupIntentSecret] = useState('');
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -229,38 +289,16 @@ const Account: React.FC = () => {
     }
   };
 
-  const handleSavePaymentMethod = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries((formData as any).entries());
-    const isDefault = formData.get('isDefault') === 'on';
-    
-    // Convert cardNumber to last4
-    const cardNumber = data.cardNumber as string;
-    const last4 = cardNumber.slice(-4);
-    
-    // Infer cardBrand simply
-    let cardBrand = 'Visa';
-    if (cardNumber.startsWith('5')) cardBrand = 'MasterCard';
-    if (cardNumber.startsWith('3')) cardBrand = 'Amex';
 
+
+  const handleAddNewCardClick = async () => {
+    setIsAddingPayment(true);
     try {
-      const res = await api.post('/payment-methods', { 
-        cardBrand,
-        last4,
-        expMonth: Number(data.expMonth), 
-        expYear: Number(data.expYear),
-        isDefault 
-      });
-      if (isDefault) {
-        setPaymentMethods([res.data, ...paymentMethods.map(p => ({...p, isDefault: false}))]);
-      } else {
-        setPaymentMethods([res.data, ...paymentMethods]);
-      }
-      setIsAddingPayment(false);
+      const res = await api.post('/payment-methods/setup-intent');
+      setSetupIntentSecret(res.data.clientSecret);
     } catch (err) {
       console.error(err);
-      alert('Failed to save payment method');
+      alert('Failed to initialize Stripe');
     }
   };
 
@@ -956,48 +994,30 @@ const Account: React.FC = () => {
           <h1 style={{ fontSize: '2rem', margin: 0 }}>Payment Methods</h1>
         </div>
         {!isAddingPayment && (
-          <button onClick={() => setIsAddingPayment(true)} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}>
+          <button onClick={handleAddNewCardClick} className="btn" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}>
             <Plus size={18} /> Add New Card
           </button>
         )}
       </div>
 
-      {isAddingPayment && (
+      {isAddingPayment && setupIntentSecret && (
         <div className="glass-panel" style={{ padding: '2rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)' }}>
           <h3 style={{ margin: '0 0 1.5rem', fontSize: '1.25rem' }}>Add a new card</h3>
-          <p className="text-muted" style={{ marginBottom: '1.5rem' }}>For demonstration purposes. This form will securely save card metadata.</p>
-          <form onSubmit={handleSavePaymentMethod} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div className="input-group">
-              <label>Card Number</label>
-              <input type="text" name="cardNumber" placeholder="0000 0000 0000 0000" maxLength={19} required />
-            </div>
-            <div className="input-group">
-              <label>Name on Card</label>
-              <input type="text" name="nameOnCard" required />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-              <div className="input-group">
-                <label>Exp Month</label>
-                <input type="number" name="expMonth" placeholder="MM" min="1" max="12" required />
-              </div>
-              <div className="input-group">
-                <label>Exp Year</label>
-                <input type="number" name="expYear" placeholder="YYYY" min="2024" max="2040" required />
-              </div>
-              <div className="input-group">
-                <label>CVC</label>
-                <input type="text" name="cvc" placeholder="123" maxLength={4} required />
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <input type="checkbox" id="isDefaultCard" name="isDefault" style={{ width: 'auto' }} />
-              <label htmlFor="isDefaultCard" style={{ margin: 0 }}>Set as default payment method</label>
-            </div>
-            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-              <button type="button" className="btn btn-outline" onClick={() => setIsAddingPayment(false)}>Cancel</button>
-              <button type="submit" className="btn">Save Card</button>
-            </div>
-          </form>
+          <p className="text-muted" style={{ marginBottom: '1.5rem' }}>Enter your card details securely below.</p>
+          <Elements stripe={stripePromise} options={{ clientSecret: setupIntentSecret }}>
+            <AddCardForm 
+              onCancel={() => { setIsAddingPayment(false); setSetupIntentSecret(''); }}
+              onSaveSuccess={(newMethod) => {
+                if (newMethod.isDefault) {
+                  setPaymentMethods([newMethod, ...paymentMethods.map(m => ({ ...m, isDefault: false }))]);
+                } else {
+                  setPaymentMethods([newMethod, ...paymentMethods]);
+                }
+                setIsAddingPayment(false);
+                setSetupIntentSecret('');
+              }}
+            />
+          </Elements>
         </div>
       )}
 

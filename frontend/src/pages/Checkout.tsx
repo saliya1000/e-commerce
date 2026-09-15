@@ -81,6 +81,8 @@ const Checkout: React.FC = () => {
   
   const [clientSecret, setClientSecret] = useState('');
   const [orderId, setOrderId] = useState('');
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [isInitializingPayment, setIsInitializingPayment] = useState(false);
   const isSubmitting = React.useRef(false);
   
@@ -94,7 +96,7 @@ const Checkout: React.FC = () => {
     country: 'Finland',
   });
 
-  const [saveAddress, setSaveAddress] = useState(true);
+  const [saveAddress, setSaveAddress] = useState(false);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -125,8 +127,6 @@ const Checkout: React.FC = () => {
              postal_code: defaultAddr.postalCode,
              country: defaultAddr.country
            });
-        } else {
-           setSaveAddress(true);
         }
       }).catch(err => console.error(err));
     }
@@ -162,19 +162,22 @@ const Checkout: React.FC = () => {
 
     isSubmitting.current = true;
     setIsInitializingPayment(true);
+    setCheckoutError(null);
     try {
       const guestId = localStorage.getItem('guestId');
       const res = await api.post('/orders/checkout', {
         guestId,
         shippingAddress,
         shippingMethod,
-        saveAddress
+        saveAddress,
+        existingOrderId: pendingOrderId
       });
       setClientSecret(res.data.clientSecret);
       setOrderId(res.data.orderId);
+      setPendingOrderId(res.data.orderId);
     } catch (err: any) {
       console.error('Checkout failed', err);
-      alert('Failed to initiate checkout. ' + (err.response?.data?.error || err.response?.data?.message || err.message));
+      setCheckoutError('Failed to initiate checkout. ' + (err.response?.data?.error || err.response?.data?.message || err.message));
     } finally {
       setIsInitializingPayment(false);
       isSubmitting.current = false;
@@ -333,6 +336,11 @@ const Checkout: React.FC = () => {
                 <button type="submit" className="btn" disabled={isInitializingPayment} style={{ padding: '1.25rem', fontSize: '1.1rem', marginTop: '1rem' }}>
                   {isInitializingPayment ? 'Preparing Secure Payment...' : 'Continue to Payment'}
                 </button>
+                {checkoutError && (
+                  <div style={{ color: 'var(--error, #ef4444)', marginTop: '0.5rem', fontSize: '0.9rem', padding: '0.75rem', background: '#FEF2F2', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldCheck size={16} />{checkoutError}
+                  </div>
+                )}
               </form>
             ) : (
               /* When clientSecret is present, show Payment Element */

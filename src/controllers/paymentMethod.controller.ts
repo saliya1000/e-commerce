@@ -1,5 +1,10 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
+  apiVersion: '2022-11-15' as any,
+});
 
 export const getPaymentMethods = async (req: Request, res: Response) => {
   try {
@@ -18,15 +23,47 @@ export const getPaymentMethods = async (req: Request, res: Response) => {
   }
 };
 
+export const createSetupIntent = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    let stripeCustomerId = user.stripeCustomerId;
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({ email: user.email });
+      stripeCustomerId = customer.id;
+      await prisma.user.update({ where: { id: userId }, data: { stripeCustomerId } });
+    }
+
+    const setupIntent = await stripe.setupIntents.create({
+      customer: stripeCustomerId,
+      usage: 'off_session',
+    });
+
+    res.json({ clientSecret: setupIntent.client_secret });
+  } catch (error: any) {
+    console.error('Failed to create setup intent:', error);
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
 export const createPaymentMethod = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const { cardBrand, last4, expMonth, expYear, isDefault } = req.body;
+    const { paymentMethodId, isDefault } = req.body;
 
-    if (!last4) {
-      return res.status(400).json({ message: 'Missing required card details' });
+    if (!paymentMethodId) {
+      return res.status(400).json({ message: 'Missing payment method ID' });
+    }
+
+    const stripeMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    if (!stripeMethod || !stripeMethod.card) {
+      return res.status(400).json({ message: 'Invalid payment method' });
     }
 
     if (isDefault) {
@@ -39,10 +76,10 @@ export const createPaymentMethod = async (req: Request, res: Response) => {
     const paymentMethod = await prisma.paymentMethod.create({
       data: {
         userId,
-        cardBrand: cardBrand || 'Unknown',
-        last4,
-        expMonth,
-        expYear,
+        cardBrand: stripeMethod.card.brand || 'Unknown',
+        last4: stripeMethod.card.last4,
+        expMonth: stripeMethod.card.exp_month,
+        expYear: stripeMethod.card.exp_year,
         isDefault: isDefault || false,
       },
     });

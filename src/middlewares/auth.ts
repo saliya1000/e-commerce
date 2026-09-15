@@ -59,13 +59,15 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
       where: { tokenHash: hashedAT }
     });
 
-    if (!isRevoked) {
-      req.user = decoded;
+    if (isRevoked) {
+      return res.status(401).json({ error: 'Token has been revoked' });
     }
+
+    req.user = decoded;
+    next();
   } catch (err) {
-    // Ignore invalid token for optional auth
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
-  next();
 };
 
 export const requireRole = (role: string) => {

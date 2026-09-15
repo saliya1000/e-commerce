@@ -5,6 +5,7 @@ import { publishPaymentStatus } from '../utils/amqp';
 import { publishRefundStatus } from '../utils/amqp';
 import { calculateTotal } from '../utils/cartCalculations';
 import { AddressValidatorService } from '../utils/AddressValidatorService';
+import { decrypt } from '../utils/encryption';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2022-11-15' as any, // Cast to any to avoid strict version type mismatches
@@ -13,7 +14,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
 export const checkout = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { guestId, shippingAddress, shippingMethod } = req.body;
+    const { guestId, shippingAddress, shippingMethod, existingOrderId } = req.body;
     
     console.log(`[CHECKOUT] userId: ${userId}, guestId: ${guestId}`);
 
@@ -57,25 +58,53 @@ export const checkout = async (req: Request, res: Response) => {
     // Calculate subtotal
     const totalAmount = calculateTotal(cart.items, shippingCost);
 
-    // Create Order
-    const order = await prisma.order.create({
-      data: {
-        userId,
-        guestId: userId ? null : guestId,
-        status: 'Pending Payment',
-        totalAmount,
-        shippingAddress,
-        shippingMethod: shippingMethod || 'standard',
-        shippingCost,
-        items: {
-          create: cart.items.map(item => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            price: item.product.price
-          }))
-        }
+    // Create or Update Order
+    let order;
+    if (existingOrderId) {
+      const existing = await prisma.order.findUnique({ where: { id: existingOrderId } });
+      if (existing && existing.status === 'Pending Payment') {
+        // We must delete the old items first to recreate them
+        await prisma.orderItem.deleteMany({ where: { orderId: existingOrderId } });
+        
+        order = await prisma.order.update({
+          where: { id: existingOrderId },
+          data: {
+            totalAmount,
+            shippingAddress,
+            shippingMethod: shippingMethod || 'standard',
+            shippingCost,
+            items: {
+              create: cart.items.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.product.price
+              }))
+            }
+          }
+        });
       }
-    });
+    }
+
+    if (!order) {
+      order = await prisma.order.create({
+        data: {
+          userId,
+          guestId: userId ? null : guestId,
+          status: 'Pending Payment',
+          totalAmount,
+          shippingAddress,
+          shippingMethod: shippingMethod || 'standard',
+          shippingCost,
+          items: {
+            create: cart.items.map(item => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              price: item.product.price
+            }))
+          }
+        }
+      });
+    }
 
     // Save Address if requested by a logged in user
     console.log(`[CHECKOUT] userId: ${userId}, saveAddress: ${req.body.saveAddress}`);
@@ -91,21 +120,47 @@ export const checkout = async (req: Request, res: Response) => {
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
-      console.log(`[CHECKOUT] Creating new address:`, { firstName, lastName, line1: shippingAddress.line1 });
-      const newAddr = await prisma.address.create({
-        data: {
-          userId,
-          firstName,
-          lastName,
-          addressLine1: shippingAddress.line1,
-          city: shippingAddress.city,
-          postalCode: shippingAddress.postal_code,
-          phoneNumber: shippingAddress.phone,
-          country: shippingAddress.country,
-          isDefault: true
+      const existingAddresses = await prisma.address.findMany({ where: { userId } });
+      let matchedAddressId = null;
+
+      for (const addr of existingAddresses) {
+        if (
+          decrypt(addr.addressLine1) === shippingAddress.line1 &&
+          decrypt(addr.city) === shippingAddress.city &&
+          decrypt(addr.postalCode) === shippingAddress.postal_code &&
+          (addr.phoneNumber ? decrypt(addr.phoneNumber) === shippingAddress.phone : !shippingAddress.phone) &&
+          addr.country === shippingAddress.country &&
+          addr.firstName === firstName &&
+          addr.lastName === lastName
+        ) {
+          matchedAddressId = addr.id;
+          break;
         }
-      });
-      console.log(`[CHECKOUT] Address created:`, newAddr.id);
+      }
+
+      if (matchedAddressId) {
+        console.log(`[CHECKOUT] Reusing existing address:`, matchedAddressId);
+        await prisma.address.update({
+          where: { id: matchedAddressId },
+          data: { isDefault: true }
+        });
+      } else {
+        console.log(`[CHECKOUT] Creating new address:`, { firstName, lastName, line1: shippingAddress.line1 });
+        const newAddr = await prisma.address.create({
+          data: {
+            userId,
+            firstName,
+            lastName,
+            addressLine1: shippingAddress.line1,
+            city: shippingAddress.city,
+            postalCode: shippingAddress.postal_code,
+            phoneNumber: shippingAddress.phone,
+            country: shippingAddress.country,
+            isDefault: true
+          }
+        });
+        console.log(`[CHECKOUT] Address created:`, newAddr.id);
+      }
     }
 
     // Do NOT clear the cart here. 
@@ -141,6 +196,9 @@ export const checkout = async (req: Request, res: Response) => {
     });
 
     // Create Payment record
+    if (existingOrderId) {
+      await prisma.payment.deleteMany({ where: { orderId: order.id, status: 'Pending' } });
+    }
     await prisma.payment.create({
       data: {
         orderId: order.id,
@@ -209,7 +267,25 @@ export const getOrders = async (req: Request, res: Response) => {
 export const verifyPayment = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
-    const order = await prisma.order.findUnique({ where: { id }, include: { payments: true } }) as any;
+    const userId = req.user?.userId;
+    const guestId = req.cookies?.guestId || req.body?.guestId || req.query?.guestId as string;
+
+    if (!userId && !guestId) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
+
+    const order = await prisma.order.findFirst({ 
+      where: { 
+        id,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(guestId ? [{ guestId }] : [])
+        ]
+      }, 
+      include: { payments: true } 
+    }) as any;
+    
     if (!order || !order.payments) {
       res.status(404).json({ message: 'Order not found' });
       return;
@@ -234,8 +310,22 @@ export const verifyPayment = async (req: Request, res: Response) => {
 export const getOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const order = await prisma.order.findUnique({
-      where: { id: id as string },
+    const userId = req.user?.userId;
+    const guestId = req.cookies?.guestId || req.query?.guestId as string;
+
+    if (!userId && !guestId) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { 
+        id: id as string,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(guestId ? [{ guestId }] : [])
+        ]
+      },
       include: { items: { include: { product: { include: { images: true } } } }, payments: true }
     });
 
@@ -254,8 +344,22 @@ export const getOrder = async (req: Request, res: Response) => {
 export const cancelOrder = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const order = await prisma.order.findUnique({ 
-      where: { id: id as string },
+    const userId = req.user?.userId;
+    const guestId = req.cookies?.guestId || req.body?.guestId || req.query?.guestId as string;
+
+    if (!userId && !guestId) {
+      res.status(403).json({ message: 'Forbidden' });
+      return;
+    }
+
+    const order = await prisma.order.findFirst({ 
+      where: { 
+        id: id as string,
+        OR: [
+          ...(userId ? [{ userId }] : []),
+          ...(guestId ? [{ guestId }] : [])
+        ]
+      },
       include: { payments: true }
     });
 
@@ -291,6 +395,95 @@ export const cancelOrder = async (req: Request, res: Response) => {
     res.status(400).json({ message: 'Cannot cancel an order that has already shipped or been processed' });
   } catch (error) {
     console.error(error);
+    res.status(500).json({ message: 'Failed to cancel order' });
+  }
+};
+
+export const trackOrder = async (req: Request, res: Response) => {
+  try {
+    const { orderId, email } = req.body;
+    if (!orderId || !email) {
+      return res.status(400).json({ message: 'Order ID and email are required' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        },
+        user: true,
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const shippingAddress: any = order.shippingAddress || {};
+    const orderEmail = order.user?.email || shippingAddress.email;
+
+    if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {
+      return res.status(403).json({ message: 'Order not found or email does not match' });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error('Error tracking order:', error);
+    res.status(500).json({ message: 'Failed to track order' });
+  }
+};
+
+export const trackCancelOrder = async (req: Request, res: Response) => {
+  try {
+    const { orderId, email } = req.body;
+    if (!orderId || !email) {
+      return res.status(400).json({ message: 'Order ID and email are required' });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payments: true, user: true }
+    });
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    const shippingAddress: any = order.shippingAddress || {};
+    const orderEmail = order.user?.email || shippingAddress.email;
+
+    if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {
+      return res.status(403).json({ message: 'Order not found or email does not match' });
+    }
+
+    if (order.status === 'Pending Payment') {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'Cancelled' }
+      });
+      return res.json({ success: true, message: 'Order cancelled' });
+    }
+
+    if (order.status === 'Payment Successful') {
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { status: 'Refund Processing' }
+      });
+      
+      const payment = order.payments.find(p => p.status === 'Succeeded');
+      const transactionId = payment?.transactionId || undefined;
+      
+      await publishRefundStatus(order.id, transactionId);
+      
+      return res.json({ success: true, message: 'Refund initiated' });
+    }
+
+    res.status(400).json({ message: 'Cannot cancel an order that has already shipped or been processed' });
+  } catch (error) {
+    console.error('Error cancelling tracked order:', error);
     res.status(500).json({ message: 'Failed to cancel order' });
   }
 };

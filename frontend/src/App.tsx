@@ -16,6 +16,7 @@ import CartPage from './pages/Cart';
 import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
 import OrderDetail from './pages/OrderDetail';
+import TrackOrder from './pages/TrackOrder';
 
 import './styles/index.css';
 
@@ -45,6 +46,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/cart" element={<Layout><CartPage /></Layout>} />
       <Route path="/checkout" element={<Layout><Checkout /></Layout>} />
       <Route path="/order-confirmation" element={<Layout><OrderConfirmation /></Layout>} />
+      <Route path="/track-order" element={<Layout><TrackOrder /></Layout>} />
       <Route 
         path="/account" 
         element={

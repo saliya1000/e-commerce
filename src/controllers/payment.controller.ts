@@ -31,11 +31,24 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       const orderId = paymentIntent.metadata.orderId;
       if (orderId) {
-        // Update payment record
-        await prisma.payment.updateMany({
-          where: { transactionId: paymentIntent.id },
-          data: { status: 'Succeeded' }
+        const updateResult = await prisma.order.updateMany({
+          where: { 
+            id: orderId, 
+            status: { in: ['Pending Payment', 'Payment Failed'] }
+          },
+          data: { status: 'Payment Successful' }
         });
+
+        if (updateResult.count === 0) {
+          console.log(`Order ${orderId} is not in a valid state for success update (e.g. Cancelled).`);
+          break;
+        }
+
+        await prisma.payment.updateMany({
+          where: { orderId, status: 'Pending' },
+          data: { status: 'Succeeded', transactionId: paymentIntent.id }
+        });
+
         await publishPaymentStatus(orderId, 'PAYMENT_SUCCESS', paymentIntent.id);
       }
       break;
@@ -44,12 +57,21 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       const orderId = paymentIntent.metadata.orderId;
       if (orderId) {
-        // Update payment record
-        await prisma.payment.updateMany({
-          where: { transactionId: paymentIntent.id },
-          data: { status: 'Failed' }
+        const updateResult = await prisma.order.updateMany({
+          where: { 
+            id: orderId, 
+            status: 'Pending Payment' 
+          },
+          data: { status: 'Payment Failed' }
         });
-        await publishPaymentStatus(orderId, 'PAYMENT_FAILED', paymentIntent.id);
+        
+        if (updateResult.count > 0) {
+          await prisma.payment.updateMany({
+            where: { orderId, status: 'Pending' },
+            data: { status: 'Failed', transactionId: paymentIntent.id }
+          });
+          await publishPaymentStatus(orderId, 'PAYMENT_FAILED', paymentIntent.id);
+        }
       }
       break;
     }

@@ -32,7 +32,7 @@ const Footer: React.FC = () => {
             <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>About Us</a></li>
             <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Contact Us</a></li>
             <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Careers</a></li>
-            <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Privacy Policy</a></li>
+            <li><Link to="/track-order" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Track Order</Link></li>
           </ul>
         </div>
 

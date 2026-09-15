@@ -9,6 +9,8 @@ export const generateOrderEmailHtml = (order: any): string => {
   const subtotal = Number(order.totalAmount) - Number(order.shippingCost || 0);
   const shippingCost = Number(order.shippingCost || 0);
   const finalTotal = Number(order.totalAmount);
+  const orderEmail = order.user?.email || order.shippingAddress?.email || '';
+  const trackLink = `${process.env.CLIENT_URL || 'http://localhost:3000'}/track-order?orderId=${order.id}&email=${encodeURIComponent(orderEmail)}`;
 
   const itemsHtml = order.items.map((item: any) => `
     <tr>
@@ -66,6 +68,9 @@ export const generateOrderEmailHtml = (order: any): string => {
           <div class="order-info">
             <p><strong>Order ID:</strong> ${order.id}</p>
             <p><strong>Order Date:</strong> ${orderDate}</p>
+            <div style="margin-top: 15px;">
+              <a href="${trackLink}" style="display: inline-block; background-color: #20B2AA; color: #ffffff; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 14px;">Track Your Order</a>
+            </div>
           </div>
           
           <h3>Items Purchased</h3>
@@ -211,6 +216,7 @@ export const generateRefundEmailHtml = (order: any): string => {
             <p><strong>Order ID:</strong> ${order.id}</p>
             <p><strong>Refund Amount:</strong> $${Number(order.totalAmount).toFixed(2)}</p>
             <p><strong>Status:</strong> Cancelled & Refunded</p>
+            ${order.cancelReason ? `<p><strong>Reason:</strong> ${order.cancelReason}</p>` : ''}
           </div>
           
           <p>Please allow 3-5 business days for the refund to reflect on your bank statement. If you have any questions, feel free to contact us.</p>

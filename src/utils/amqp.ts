@@ -7,19 +7,37 @@ const AMQP_URL = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
 const QUEUE_NAME = 'payment_status_updates';
 const REFUND_QUEUE = 'refund_processing';
 
+const DLX_NAME = 'dlx_exchange';
+const DLQ_NAME = 'dead_letter_queue';
+
 export const initAmqp = async () => {
   try {
     connection = await amqp.connect(AMQP_URL);
     channel = await connection.createChannel();
     
+    // Assert Dead-Letter Exchange and Queue
+    await channel.assertExchange(DLX_NAME, 'direct', { durable: true });
+    await channel.assertQueue(DLQ_NAME, { durable: true });
+    await channel.bindQueue(DLQ_NAME, DLX_NAME, 'dlq_routing_key');
+
+    // Assert main queues with DLX config
     await channel.assertQueue(QUEUE_NAME, {
-      durable: true
-    });
-    await channel.assertQueue(REFUND_QUEUE, {
-      durable: true
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': DLX_NAME,
+        'x-dead-letter-routing-key': 'dlq_routing_key'
+      }
     });
     
-    console.log(`[AMQP] Connected and queues asserted`);
+    await channel.assertQueue(REFUND_QUEUE, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': DLX_NAME,
+        'x-dead-letter-routing-key': 'dlq_routing_key'
+      }
+    });
+    
+    console.log(`[AMQP] Connected and queues asserted with DLQ configured`);
   } catch (error) {
     console.error('[AMQP] Failed to connect to RabbitMQ', error);
   }

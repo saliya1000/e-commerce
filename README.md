@@ -4,13 +4,13 @@
 
 **HappyPets** is a fully-featured, production-ready Business-to-Consumer (B2C) e-commerce platform focused on Pet Supplies. This repository contains both the robust backend API and the beautifully designed React SPA frontend.
 
-The platform includes comprehensive features required for a modern e-commerce application, including secure authentication, a faceted product catalog, shopping cart functionality, a checkout flow with Stripe integration, order management, and a rich user dashboard (featuring Address Book and Payment Methods management).
+The platform includes comprehensive features required for a modern e-commerce application, including secure authentication, a faceted product catalog, shopping cart functionality, a secure checkout flow with Stripe integration, advanced order management, and a rich user dashboard.
 
 It is built using:
 - **Frontend:** React, TypeScript, Vite, Lucide React (Icons), and plain CSS for a custom, glassmorphic UI.
 - **Backend:** Node.js, Express, TypeScript for the API.
 - **Database:** PostgreSQL for an ACID-compliant relational database, managed via Prisma ORM.
-- **Messaging/Workers:** RabbitMQ for asynchronous tasks (e.g., order confirmation emails).
+- **Messaging/Workers:** RabbitMQ for asynchronous tasks (e.g., order confirmation emails, inventory deductions, refunds).
 - **Infrastructure:** Docker & Docker Compose for seamless one-click containerization and deployment.
 
 ## Setup and Installation
@@ -53,45 +53,35 @@ Features available in the UI:
 - **Shopping:** Browse products, faceted search, add to cart, adjust quantities.
 - **Checkout:** Seamless Stripe-simulated checkout flow with shipping options and payment breakdown.
 - **User Dashboard:** View past orders, manage Profile & Security, save Shipping Addresses (Address Book), and securely store mock Payment Methods.
+- **Guest Tracking:** Guests can track and cancel their orders securely using an Order ID and Email combination via magic links.
 
-### Backend API Features
+## Architecture & Security Updates
 
-#### Authentication & Security
-- Complete JWT-based authentication with **Refresh Token Rotation**.
-- Two-Factor Authentication (TOTP) generation and verification.
-- Password reset flows and Google OAuth integration.
-- Rate limiting and Helmet.js for secure HTTP headers.
+This project places a heavy emphasis on enterprise-grade architecture and robust security:
 
-#### Product Catalog
-- Advanced filtering: Search by query, filter by category/brand, price ranges.
-- Dynamic search suggestions (type-ahead).
-- Detailed product pages including multiple images and variations.
-
-#### Cart & Checkout
-- Persistent carts for both authenticated users and guests.
-- Checkout initialization, stripe intent generation, and order processing.
-- Shipping options (Standard, Express, Overnight) mapped to costs.
-
-#### Orders & Dashboard
-- Retrieve user orders and status.
-- Address Book management endpoints.
-- Payment Methods management endpoints.
+- **PCI-Compliant Payments:** Raw card details never touch our server. The integration utilizes Stripe's `SetupIntent` and `PaymentElement` to securely vault card data. Webhooks ensure atomic updates using Prisma `updateMany` to prevent duplicate processing, and the Stripe `transactionId` is securely stored.
+- **RabbitMQ Dead-Letter Queues (DLQ):** The asynchronous messaging architecture implements a Dead-Letter Exchange (DLX) and Dead-Letter Queue (DLQ). This ensures that any failed background jobs (like payment webhooks, emails, or refunds) are never silently dropped, allowing for reliable retry mechanisms.
+- **IDOR Prevention:** Order endpoints are strictly scoped to the user's `userId` (via JWT) or their `guestId` (via cookies or explicitly passed credentials). This effectively prevents Insecure Direct Object Reference (IDOR) vulnerabilities where users could access or cancel others' orders.
+- **Robust Cart & Checkout:** Fixes have been implemented to prevent negative quantities in the cart, gracefully handle expired JWT tokens (returning `401 Unauthorized`), and prevent race conditions that could lead to duplicate pending orders or duplicated address entries.
 
 ## Testing
 
-The project includes a comprehensive suite of unit and integration tests using Jest and Supertest. Tests now run against a completely isolated test database (`happypets_test`) to prevent accidental data loss in your development database.
+The project includes a comprehensive suite of unit and integration tests using Jest and Supertest.
 
-To run the test suite locally on your host machine, make sure your Docker containers are running (so the database server is accessible) and run the following command:
+### Isolated Test Environment
+Tests now run against a completely isolated test database (`happypets_test`) to prevent accidental data loss in your development database. This ensures operations like `deleteMany()` are completely safe.
+
+To run the test suite locally on your host machine, make sure your Docker containers are running (so the database server is accessible) and execute:
 
 ```bash
 npm run test:local
 ```
 
-This script will automatically load the `.env.test` file using `dotenv-cli`, run Prisma migrations to ensure your test database schema is up-to-date, and then safely run Jest. Test scripts now safely utilize `deleteMany({})` within integration tests without affecting the main development database.
+This script automatically loads the `.env.test` file using `dotenv-cli`, configuring Jest to target the isolated test database, runs migrations to ensure the schema is fresh, and executes the integration tests securely.
 
 ## Entity Relationship Diagram (ERD)
 
-The database schema guarantees ACID properties through PostgreSQL. Below is the core Entity Relationship Diagram:
+The database schema guarantees ACID properties through PostgreSQL. Below is the updated core Entity Relationship Diagram reflecting our newest architectural additions:
 
 ```mermaid
 erDiagram
@@ -136,9 +126,21 @@ erDiagram
     ORDER ||--o{ PAYMENT : processed_with
     ORDER {
         String id PK
+        String userId FK
+        String guestId
         String status
+        String cancelReason
         Decimal totalAmount
         Json shippingAddress
+    }
+    
+    PAYMENT {
+        String id PK
+        String orderId FK
+        Decimal amount
+        String status
+        String provider
+        String transactionId
     }
     
     ADDRESS {
@@ -154,8 +156,3 @@ erDiagram
         Boolean isDefault
     }
 ```
-
-## Bonus Functionality
-* **Asynchronous Email Processing**: When an order is placed, a message is queued to RabbitMQ and processed by a background worker to send confirmation emails, ensuring the checkout API responds instantly without waiting for the email service.
-* **Refresh Token Rotation**: Implemented to drastically reduce the risk of token theft.
-* **Modern Premium UI**: The frontend utilizes glassmorphism, responsive design, and fluid animations to provide a top-tier user experience.

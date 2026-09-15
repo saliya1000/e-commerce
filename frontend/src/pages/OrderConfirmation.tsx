@@ -17,14 +17,15 @@ const OrderConfirmation: React.FC = () => {
     const fetchOrder = async () => {
       if (orderId) {
         try {
+          const guestId = localStorage.getItem('guestId');
           if (redirectStatus === 'succeeded') {
-            await api.post(`/orders/${orderId}/verify-payment`);
+            await api.post(`/orders/${orderId}/verify-payment`, { guestId });
             // Give the backend worker a moment to clear the cart via RabbitMQ, then refresh frontend cart
             setTimeout(() => {
               if (fetchCart) fetchCart();
             }, 500);
           }
-          const res = await api.get(`/orders/${orderId}`);
+          const res = await api.get(`/orders/${orderId}`, { params: { guestId } });
           setOrder(res.data);
         } catch (err) {
           console.error('Failed to fetch order', err);
