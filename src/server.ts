@@ -5,6 +5,7 @@ import { initMailer } from './utils/mailer';
 import { initAmqp } from './utils/amqp';
 import { startOrderWorker } from './workers/orderWorker';
 import { startRefundWorker } from './workers/refundWorker';
+import { startCronJobs } from './jobs/cleanupOrders';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ async function start() {
     await initAmqp();
     await startOrderWorker();
     await startRefundWorker();
+    startCronJobs();
     
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

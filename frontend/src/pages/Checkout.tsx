@@ -83,6 +83,7 @@ const Checkout: React.FC = () => {
   const [orderId, setOrderId] = useState('');
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [isValidatingAddress, setIsValidatingAddress] = useState(false);
   const [isInitializingPayment, setIsInitializingPayment] = useState(false);
   const isSubmitting = React.useRef(false);
   
@@ -173,10 +174,17 @@ const Checkout: React.FC = () => {
     setFormErrors({});
 
     isSubmitting.current = true;
-    setIsInitializingPayment(true);
+    setIsValidatingAddress(true);
     setCheckoutError(null);
     try {
       const guestId = localStorage.getItem('guestId');
+      
+      // Step 1: Validate address visually before initializing payment
+      await api.post('/orders/validate-address', { shippingAddress });
+      setIsValidatingAddress(false);
+
+      // Step 2: Initialize payment
+      setIsInitializingPayment(true);
       const res = await api.post('/orders/checkout', {
         guestId,
         shippingAddress,
@@ -204,6 +212,7 @@ const Checkout: React.FC = () => {
         setCheckoutError('Failed to initiate checkout. ' + errorMsg);
       }
     } finally {
+      setIsValidatingAddress(false);
       setIsInitializingPayment(false);
       isSubmitting.current = false;
     }
@@ -358,8 +367,8 @@ const Checkout: React.FC = () => {
                   </div>
                 </section>
 
-                <button type="submit" className="btn" disabled={isInitializingPayment} style={{ padding: '1.25rem', fontSize: '1.1rem', marginTop: '1rem' }}>
-                  {isInitializingPayment ? 'Preparing Secure Payment...' : 'Continue to Payment'}
+                <button type="submit" className="btn" disabled={isInitializingPayment || isValidatingAddress} style={{ padding: '1.25rem', fontSize: '1.1rem', marginTop: '1rem' }}>
+                  {isValidatingAddress ? 'Validating Address...' : isInitializingPayment ? 'Preparing Secure Payment...' : 'Continue to Payment'}
                 </button>
                 {checkoutError && (
                   <div style={{ color: 'var(--error, #ef4444)', marginTop: '0.5rem', fontSize: '0.9rem', padding: '0.75rem', background: '#FEF2F2', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

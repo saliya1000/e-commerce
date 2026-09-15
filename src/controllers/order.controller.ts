@@ -5,12 +5,35 @@ import { publishPaymentStatus } from '../utils/amqp';
 import { publishRefundStatus } from '../utils/amqp';
 import { calculateTotal } from '../utils/cartCalculations';
 import { AddressValidatorService } from '../utils/AddressValidatorService';
-import { validateAddressWithGoogle } from '../utils/googleMapsValidator';
+import { validateAddressWithNominatim } from '../utils/nominatimValidator';
 import { decrypt } from '../utils/encryption';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2022-11-15' as any, // Cast to any to avoid strict version type mismatches
 });
+
+export const validateAddress = async (req: Request, res: Response) => {
+  try {
+    const { shippingAddress } = req.body;
+    
+    const addressValidation = AddressValidatorService.validate(shippingAddress);
+    if (!addressValidation.isValid) {
+      res.status(400).json({ message: addressValidation.message });
+      return;
+    }
+
+    const nominatimValidation = await validateAddressWithNominatim(shippingAddress);
+    if (!nominatimValidation.isValid) {
+      res.status(400).json({ message: nominatimValidation.message });
+      return;
+    }
+
+    res.json({ isValid: true });
+  } catch (error: any) {
+    console.error('ADDRESS_VALIDATION_ERROR:', error);
+    res.status(500).json({ message: 'Address validation failed', error: error.message });
+  }
+};
 
 export const checkout = async (req: Request, res: Response) => {
   try {
@@ -46,10 +69,10 @@ export const checkout = async (req: Request, res: Response) => {
       return;
     }
 
-    // Validate shipping address using Google Maps Address Validation API
-    const googleValidation = await validateAddressWithGoogle(shippingAddress);
-    if (!googleValidation.isValid) {
-      res.status(400).json({ message: googleValidation.message });
+    // Validate shipping address using Nominatim (OpenStreetMap) API
+    const nominatimValidation = await validateAddressWithNominatim(shippingAddress);
+    if (!nominatimValidation.isValid) {
+      res.status(400).json({ message: nominatimValidation.message });
       return;
     }
 
