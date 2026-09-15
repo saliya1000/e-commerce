@@ -43,11 +43,18 @@ export async function validateAddressWithGoogle(shippingAddress: any): Promise<{
       return { isValid: true };
     }
 
+    const unconfirmedTypes: string[] = data.result?.address?.unconfirmedComponentTypes || [];
+    
+    // Check for critically bad unconfirmed components
+    const hasCriticalUnconfirmed = unconfirmedTypes.some(type => 
+      ['postal_code', 'locality', 'route', 'street_number', 'country'].includes(type)
+    );
+
     // Strict validation check
     if (
       !verdict.addressComplete ||
       verdict.validationConclusion === 'UNCONFIRMED_AND_SUSPICIOUS' ||
-      verdict.hasUnconfirmedComponents
+      hasCriticalUnconfirmed
     ) {
       return {
         isValid: false,
