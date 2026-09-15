@@ -45,13 +45,13 @@ export async function validateAddressWithGoogle(shippingAddress: any): Promise<{
 
     // Strict validation check
     if (
-      !verdict.addressComplete || 
+      !verdict.addressComplete ||
       verdict.validationConclusion === 'UNCONFIRMED_AND_SUSPICIOUS' ||
       verdict.hasUnconfirmedComponents
     ) {
       return {
         isValid: false,
-        message: 'The shipping address could not be verified by Google Maps. Please enter a real-world address.',
+        message: 'The shipping address could not be verified. Please enter a correct address.',
       };
     }
 

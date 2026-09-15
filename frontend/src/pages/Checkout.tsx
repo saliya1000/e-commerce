@@ -191,7 +191,7 @@ const Checkout: React.FC = () => {
       console.error('Checkout failed', err);
       const errorMsg = err.response?.data?.error || err.response?.data?.message || err.message;
       
-      if (errorMsg && errorMsg.includes('verified by Google Maps')) {
+      if (errorMsg && errorMsg.includes('could not be verified')) {
         setFormErrors({ line1: errorMsg });
         setTimeout(() => {
           const errorElement = document.querySelector(`[name="line1"]`) as HTMLElement;
