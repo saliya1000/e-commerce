@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Filter } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { SEO } from '../components/SEO';
 
 interface Product {
   id: string;
@@ -103,7 +104,10 @@ const ProductList: React.FC = () => {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-
+      <SEO 
+        title="Products | i-love-shopping" 
+        description="Browse our wide selection of premium pet products." 
+      />
 
       <div style={{ display: 'flex', flex: 1, padding: '2rem', gap: '2rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         {/* Faceted Search Sidebar */}

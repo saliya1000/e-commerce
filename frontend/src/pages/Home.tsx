@@ -4,6 +4,7 @@ import { ShieldCheck, Truck, HeadphonesIcon, Award } from 'lucide-react';
 import api from '../services/api';
 import ProductCard from '../components/ProductCard';
 import SubNavbar from '../components/SubNavbar';
+import { SEO } from '../components/SEO';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -23,6 +24,10 @@ const Home: React.FC = () => {
 
   return (
     <div style={{ paddingBottom: '0' }}>
+      <SEO 
+        title="i-love-shopping | Premium Pet Products" 
+        description="Explore our premium collection of food, toys, and accessories for your beloved pets." 
+      />
       <SubNavbar />
       {/* 2. Hero Banner Section */}
       <section style={{ 

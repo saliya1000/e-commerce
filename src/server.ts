@@ -1,6 +1,9 @@
 import app from './app';
 import dotenv from 'dotenv';
 import prisma from './prisma';
+import https from 'https';
+import fs from 'fs';
+import path from 'path';
 import { initMailer } from './utils/mailer';
 import { initAmqp } from './utils/amqp';
 import { startOrderWorker } from './workers/orderWorker';
@@ -21,9 +24,21 @@ async function start() {
     await startRefundWorker();
     startCronJobs();
     
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-    });
+    try {
+      const privateKey = fs.readFileSync(path.join(__dirname, '../server.key'), 'utf8');
+      const certificate = fs.readFileSync(path.join(__dirname, '../server.cert'), 'utf8');
+      const credentials = { key: privateKey, cert: certificate };
+      
+      const httpsServer = https.createServer(credentials, app);
+      httpsServer.listen(PORT, () => {
+        console.log(`HTTPS Server is running on port ${PORT}`);
+      });
+    } catch (err) {
+      console.warn('TLS certificates not found, falling back to HTTP');
+      app.listen(PORT, () => {
+        console.log(`HTTP Server is running on port ${PORT}`);
+      });
+    }
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);

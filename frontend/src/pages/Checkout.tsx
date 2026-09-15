@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { SEO } from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Plus, Minus, CheckCircle, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
@@ -241,6 +242,7 @@ const Checkout: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      <SEO title="Checkout | i-love-shopping" description="Complete your purchase securely." />
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: '3rem', alignItems: 'start' }} className="checkout-grid">
         
         {/* Left Column: Form & Payment */}

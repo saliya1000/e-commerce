@@ -10,7 +10,9 @@ import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import ProductList from './pages/ProductList';
+import ProductDetail from './pages/ProductDetail';
 import Account from './pages/Account';
+import AdminDashboard from './pages/AdminDashboard';
 import OAuthCallback from './pages/OAuthCallback';
 import CartPage from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -43,6 +45,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       
       <Route path="/products" element={<Layout><ProductList /></Layout>} />
+      <Route path="/products/:id" element={<Layout><ProductDetail /></Layout>} />
       <Route path="/cart" element={<Layout><CartPage /></Layout>} />
       <Route path="/checkout" element={<Layout><Checkout /></Layout>} />
       <Route path="/order-confirmation" element={<Layout><OrderConfirmation /></Layout>} />
@@ -60,6 +63,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Layout><OrderDetail /></Layout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin" 
+        element={
+          <ProtectedRoute>
+            <Layout><AdminDashboard /></Layout>
           </ProtectedRoute>
         } 
       />

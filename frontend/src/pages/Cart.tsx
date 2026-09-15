@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext';
+import { SEO } from '../components/SEO';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Trash2, Plus, Minus } from 'lucide-react';
@@ -40,6 +41,7 @@ const CartPage: React.FC = () => {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      <SEO title="Your Cart | i-love-shopping" description="Review items in your shopping cart before checkout." />
       <h1 style={{ textAlign: 'left', marginBottom: '2rem' }}>Shopping Cart</h1>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '3rem', alignItems: 'start' }}>

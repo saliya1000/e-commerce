@@ -87,6 +87,11 @@ const Navbar: React.FC = () => {
         
         {isAuthenticated ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {user?.role === 'admin' && (
+              <Link to="/admin" style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none', marginRight: '1rem' }}>
+                Admin
+              </Link>
+            )}
             <Link to="/account" style={{ color: 'var(--text-main)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               {/* Avatar circle with initials — updates immediately when name is saved */}
               <div style={{

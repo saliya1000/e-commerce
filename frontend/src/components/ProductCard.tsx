@@ -1,5 +1,6 @@
 import React from 'react';
 import { Package, Star } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
 interface ProductCardProps {
@@ -22,19 +23,23 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   return (
     <div className="product-card glass-panel" style={{ padding: '0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', transition: 'transform 0.2s' }}>
-      <div style={{ height: '200px', background: 'var(--bg-muted)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {primaryImage ? (
-          <img src={primaryImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : (
-          <Package size={64} color="var(--text-muted)" opacity={0.5} />
-        )}
-        <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'var(--bg-main)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-          {product.brand}
+      <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+        <div style={{ height: '200px', background: 'var(--bg-muted)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {primaryImage ? (
+            <img src={primaryImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <Package size={64} color="var(--text-muted)" opacity={0.5} />
+          )}
+          <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'var(--bg-main)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 700, color: 'var(--secondary)', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+            {product.brand}
+          </div>
         </div>
-      </div>
+      </Link>
       
       <div style={{ padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem', fontWeight: 600 }}>{product.name}</h3>
+        <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem', fontWeight: 600 }}>{product.name}</h3>
+        </Link>
         
         {product.rating !== undefined && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '0.5rem' }}>
