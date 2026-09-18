@@ -80,11 +80,11 @@ const Login: React.FC = () => {
     const urlParams = new URLSearchParams(location.search);
     const redirectPath = urlParams.get('redirect');
     const stateParam = redirectPath ? `?state=${encodeURIComponent(redirectPath)}` : '';
-    window.location.href = `http://localhost:3000/api/auth/${provider}${stateParam}`;
+    window.location.href = `/api/auth/${provider}${stateParam}`;
   };
 
   return (
-    <div className="auth-container">
+    <main className="auth-container">
       <div className="auth-box glass-panel">
         <Link to="/products" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           <ArrowLeft size={16} /> Back to Store
@@ -101,10 +101,11 @@ const Login: React.FC = () => {
           {!requires2FA ? (
             <>
               <div className="input-group">
-                <label>Email</label>
+                <label htmlFor="email">Email</label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
+                    id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
@@ -117,12 +118,13 @@ const Login: React.FC = () => {
 
               <div className="input-group">
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <label>Password</label>
+                  <label htmlFor="password">Password</label>
                   <Link to="/forgot-password" style={{ fontSize: '0.85rem', color: 'var(--primary)', textDecoration: 'none' }}>Forgot Password?</Link>
                 </div>
                 <div style={{ position: 'relative' }}>
                   <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                   <input
+                    id="password"
                     type="password"
                     placeholder="••••••••"
                     value={password}
@@ -135,10 +137,11 @@ const Login: React.FC = () => {
             </>
           ) : (
             <div className="input-group">
-              <label>Authentication Code</label>
+              <label htmlFor="twoFactorToken">Authentication Code</label>
               <div style={{ position: 'relative' }}>
                 <Key size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
+                  id="twoFactorToken"
                   type="text"
                   placeholder="000000"
                   maxLength={6}
@@ -197,7 +200,7 @@ const Login: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 };
 

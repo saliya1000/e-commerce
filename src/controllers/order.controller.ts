@@ -7,6 +7,30 @@ import { calculateTotal } from '../utils/cartCalculations';
 import { AddressValidatorService } from '../utils/AddressValidatorService';
 import { validateAddressWithNominatim } from '../utils/nominatimValidator';
 import { decrypt } from '../utils/encryption';
+import Joi from 'joi';
+
+export const checkoutSchema = Joi.object({
+  guestId: Joi.string().allow(null, '').optional(),
+  shippingAddress: Joi.object({
+    name: Joi.string().required(),
+    line1: Joi.string().required(),
+    line2: Joi.string().allow(null, '').optional(),
+    city: Joi.string().required(),
+    state: Joi.string().allow(null, '').optional(),
+    postal_code: Joi.string().required(),
+    country: Joi.string().required(),
+    phone: Joi.string().allow(null, '').optional(),
+    email: Joi.string().email().allow(null, '').optional()
+  }).required(),
+  shippingMethod: Joi.string().valid('standard', 'express', 'overnight').optional(),
+  existingOrderId: Joi.string().uuid().optional(),
+  saveAddress: Joi.boolean().optional()
+});
+
+export const trackOrderSchema = Joi.object({
+  orderId: Joi.string().uuid().required(),
+  email: Joi.string().email().required()
+});
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
   apiVersion: '2022-11-15' as any, // Cast to any to avoid strict version type mismatches

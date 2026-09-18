@@ -13,7 +13,7 @@ export const options = {
   },
 };
 
-const BASE_URL = 'http://localhost:3005/api';
+const BASE_URL = 'http://localhost:3000/api';
 
 export default function () {
   // 1. Browse product catalog

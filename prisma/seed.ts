@@ -19,8 +19,11 @@ async function main() {
       email: 'admin@happypets.com',
       passwordHash,
       role: 'admin',
+      twoFactorEnabled: true,
+      twoFactorSecret: 'JBSWY3DPEHPK3PXP', // Example secret (Base32)
     },
   });
+  console.log('Admin 2FA Secret: JBSWY3DPEHPK3PXP');
 
   await prisma.user.create({
     data: {
@@ -163,7 +166,7 @@ async function main() {
       reviewCount: 310,
       images: {
         create: [
-          { url: 'http://localhost:3000/uploads/image-1788787629632-123456781.png', isPrimary: true }
+          { url: '/api/uploads/image-1788787629632-123456781.png', isPrimary: true }
         ]
       }
     },
@@ -179,7 +182,7 @@ async function main() {
       reviewCount: 425,
       images: {
         create: [
-          { url: 'http://localhost:3000/uploads/image-1788787650779-123456782.png', isPrimary: true }
+          { url: '/api/uploads/image-1788787650779-123456782.png', isPrimary: true }
         ]
       }
     },
@@ -195,7 +198,7 @@ async function main() {
       reviewCount: 289,
       images: {
         create: [
-          { url: 'http://localhost:3000/uploads/image-1788787670706-123456783.png', isPrimary: true }
+          { url: '/api/uploads/image-1788787670706-123456783.png', isPrimary: true }
         ]
       }
     }

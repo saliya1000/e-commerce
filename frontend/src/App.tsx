@@ -13,6 +13,11 @@ import ProductList from './pages/ProductList';
 import ProductDetail from './pages/ProductDetail';
 import Account from './pages/Account';
 import AdminDashboard from './pages/AdminDashboard';
+import Contact from './pages/Contact';
+import About from './pages/About';
+import FAQ from './pages/FAQ';
+import Terms from './pages/Terms';
+import NotFound from './pages/NotFound';
 import OAuthCallback from './pages/OAuthCallback';
 import CartPage from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -74,6 +79,11 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         } 
       />
+      <Route path="/contact" element={<Layout><Contact /></Layout>} />
+      <Route path="/about" element={<Layout><About /></Layout>} />
+      <Route path="/faq" element={<Layout><FAQ /></Layout>} />
+      <Route path="/terms" element={<Layout><Terms /></Layout>} />
+      <Route path="*" element={<Layout><NotFound /></Layout>} />
     </Routes>
   );
 };

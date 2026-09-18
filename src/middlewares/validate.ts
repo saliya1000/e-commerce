@@ -3,7 +3,7 @@ import Joi from 'joi';
 
 export const validateRequest = (schema: Joi.ObjectSchema) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const { error } = schema.validate(req.body, { abortEarly: false });
+    const { error, value } = schema.validate(req.body, { abortEarly: false, stripUnknown: true });
     
     if (error) {
       return res.status(400).json({
@@ -12,6 +12,8 @@ export const validateRequest = (schema: Joi.ObjectSchema) => {
       });
     }
     
+    // Replace req.body with the validated and stripped value (Whitelist applied)
+    req.body = value;
     next();
   };
 };

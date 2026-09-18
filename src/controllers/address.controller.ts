@@ -1,5 +1,18 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
+import Joi from 'joi';
+
+export const addressSchema = Joi.object({
+  firstName: Joi.string().required(),
+  lastName: Joi.string().required(),
+  addressLine1: Joi.string().required(),
+  addressLine2: Joi.string().allow('', null).optional(),
+  city: Joi.string().required(),
+  postalCode: Joi.string().required(),
+  country: Joi.string().required(),
+  phoneNumber: Joi.string().allow('', null).optional(),
+  isDefault: Joi.boolean().optional()
+});
 
 export const getAddresses = async (req: Request, res: Response) => {
   try {

@@ -70,11 +70,33 @@ export const optionalAuth = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
-export const requireRole = (role: string) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user || req.user.role !== role) {
+export const requireRole = (roles: string | string[]) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }
+
+    const allowedRoles = Array.isArray(roles) ? roles : [roles];
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+    }
+
+    // Enforce 2FA for admins
+    if (req.user.role === 'admin') {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: req.user.userId },
+          select: { twoFactorEnabled: true }
+        });
+
+        if (!user || !user.twoFactorEnabled) {
+          return res.status(403).json({ error: 'Forbidden: 2FA must be enabled for admin access' });
+        }
+      } catch (err) {
+        return res.status(500).json({ error: 'Internal server error while verifying 2FA' });
+      }
+    }
+
     next();
   };
 };

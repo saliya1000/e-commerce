@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-import { rateLimit } from 'express-rate-limit';
+import { tokenBucketLimiter } from './middlewares/rateLimiter';
 import { errorHandler } from './middlewares/error';
 import authRoutes from './routes/auth.routes';
 import productRoutes from './routes/product.routes';
@@ -14,6 +14,7 @@ import addressRoutes from './routes/address.routes';
 import paymentMethodRoutes from './routes/paymentMethod.routes';
 import reviewRoutes from './routes/review.routes';
 import adminRoutes from './routes/admin.routes';
+import faqRoutes from './routes/faq.routes';
 
 const app = express();
 
@@ -22,16 +23,17 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: [
+    process.env.CLIENT_URL || 'http://localhost:5173',
+    'https://localhost',
+    'http://localhost:5173',
+    'http://localhost:3000'
+  ],
   credentials: true,
 }));
 
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'test' ? 100 : 1000, // Limit each IP
-});
-app.use('/api', limiter);
+// Rate Limiting (Token Bucket)
+app.use('/api', tokenBucketLimiter);
 
 // Stripe webhook needs raw body, mount before json body parser
 app.use('/api/payments', paymentRoutes);
@@ -42,7 +44,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Static Files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -53,6 +55,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/payment-methods', paymentMethodRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/faqs', faqRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

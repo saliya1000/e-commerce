@@ -40,9 +40,9 @@ const CartPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-      <SEO title="Your Cart | i-love-shopping" description="Review items in your shopping cart before checkout." />
-      <h1 style={{ textAlign: 'left', marginBottom: '2rem' }}>Shopping Cart</h1>
+    <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      <SEO title="Your Shopping Cart - Secure Checkout | i-love-shopping" description="Review items in your shopping cart before secure checkout. Get free shipping on premium pet supplies on orders over $50." />
+      <h1 style={{ textAlign: 'left', marginBottom: '2rem' }}>Your Shopping Cart</h1>
       
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '3rem', alignItems: 'start' }}>
         <div>
@@ -83,6 +83,7 @@ const CartPage: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          aria-label={`Decrease quantity of ${item.product.name}`}
                           style={{ padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-h)' }}
                         >
                           <Minus size={16} />
@@ -90,6 +91,7 @@ const CartPage: React.FC = () => {
                         <span style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-h)', minWidth: '40px', textAlign: 'center' }}>{item.quantity}</span>
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          aria-label={`Increase quantity of ${item.product.name}`}
                           disabled={item.quantity >= item.product.stockQuantity}
                           style={{ 
                             padding: '8px 12px', 
@@ -174,7 +176,7 @@ const CartPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 };
 

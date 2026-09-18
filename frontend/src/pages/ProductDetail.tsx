@@ -64,10 +64,10 @@ const ProductDetail: React.FC = () => {
   const primaryImage = product.images?.find((img: any) => img.isPrimary)?.url || null;
 
   return (
-    <div className="container py-12">
+    <main className="container py-12">
       <SEO 
-        title={`${product.name} | i-love-shopping`} 
-        description={product.description.substring(0, 150)} 
+        title={`${product.name} - Premium Pet Supplies | i-love-shopping`} 
+        description={`${product.description.substring(0, 130)}... Buy ${product.name} and other premium pet supplies at i-love-shopping.`} 
       />
       
       <div className="grid grid-cols-2 gap-12 mb-16">
@@ -95,7 +95,7 @@ const ProductDetail: React.FC = () => {
             </div>
           </div>
           
-          <h2 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)' }}>${Number(product.price).toFixed(2)}</h2>
+          <div style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-main)' }}>${Number(product.price).toFixed(2)}</div>
           
           <p className="text-muted" style={{ fontSize: '1.1rem', lineHeight: 1.6 }}>
             {product.description}
@@ -116,7 +116,7 @@ const ProductDetail: React.FC = () => {
 
       {/* Reviews Section */}
       <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '3rem' }}>
-        <h3 className="font-bold mb-8" style={{ fontSize: '1.75rem' }}>Customer Reviews</h3>
+        <h2 className="font-bold mb-8" style={{ fontSize: '1.75rem' }}>Customer Reviews for {product.name}</h2>
         
         {/* Review Form */}
         {isAuthenticated ? (
@@ -125,8 +125,8 @@ const ProductDetail: React.FC = () => {
             {reviewError && <p style={{ color: 'var(--error)', marginBottom: '1rem' }}>{reviewError}</p>}
             
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Rating</label>
-              <select value={rating} onChange={(e) => setRating(Number(e.target.value))} className="form-input">
+              <label htmlFor="rating" style={{ display: 'block', marginBottom: '0.5rem' }}>Rating</label>
+              <select id="rating" value={rating} onChange={(e) => setRating(Number(e.target.value))} className="form-input">
                 <option value={5}>5 - Excellent</option>
                 <option value={4}>4 - Good</option>
                 <option value={3}>3 - Average</option>
@@ -136,8 +136,9 @@ const ProductDetail: React.FC = () => {
             </div>
             
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem' }}>Comment</label>
+              <label htmlFor="comment" style={{ display: 'block', marginBottom: '0.5rem' }}>Comment</label>
               <textarea 
+                id="comment"
                 value={comment} 
                 onChange={(e) => setComment(e.target.value)} 
                 className="form-input" 
@@ -183,7 +184,7 @@ const ProductDetail: React.FC = () => {
           )}
         </div>
       </section>
-    </div>
+    </main>
   );
 };
 

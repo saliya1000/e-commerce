@@ -105,9 +105,10 @@ const ProductList: React.FC = () => {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <SEO 
-        title="Products | i-love-shopping" 
-        description="Browse our wide selection of premium pet products." 
+        title="Shop Premium Pet Products & Accessories | i-love-shopping" 
+        description="Browse our wide selection of premium pet products, including dog food, cat toys, and accessories. Shop now for the best quality pet supplies online!" 
       />
+      <h1 className="sr-only" style={{ display: 'none' }}>Premium Pet Products Catalog</h1>
 
       <div style={{ display: 'flex', flex: 1, padding: '2rem', gap: '2rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         {/* Faceted Search Sidebar */}
@@ -154,8 +155,9 @@ const ProductList: React.FC = () => {
             </div>
 
             <div style={{ marginBottom: '1.5rem' }}>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Brand</label>
+              <label htmlFor="brandFilter" style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Brand</label>
               <select 
+                id="brandFilter"
                 value={selectedBrand} 
                 onChange={(e) => setSelectedBrand(e.target.value)}
                 style={{ width: '100%', padding: '0.75rem', background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '0.95rem' }}
@@ -172,6 +174,7 @@ const ProductList: React.FC = () => {
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <input 
                   type="number" 
+                  aria-label="Minimum Price"
                   placeholder="Min" 
                   value={priceMin}
                   onChange={(e) => setPriceMin(e.target.value)}
@@ -180,6 +183,7 @@ const ProductList: React.FC = () => {
                 <span>-</span>
                 <input 
                   type="number" 
+                  aria-label="Maximum Price"
                   placeholder="Max" 
                   value={priceMax}
                   onChange={(e) => setPriceMax(e.target.value)}
@@ -189,8 +193,9 @@ const ProductList: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Sort By</label>
+              <label htmlFor="sortFilter" style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Sort By</label>
               <select 
+                id="sortFilter"
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [newSortBy, newSortOrder] = e.target.value.split('-');

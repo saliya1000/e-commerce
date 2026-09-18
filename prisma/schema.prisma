@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearch"]
 }
 
 datasource db {
@@ -28,6 +29,7 @@ model User {
   orders             Order[]
   addresses          Address[]
   paymentMethods     PaymentMethod[]
+  auditLogs          AuditLog[]
 }
 
 model RefreshToken {
@@ -109,6 +111,7 @@ model Review {
   userId    String
   rating        Int      // 1 to 5
   comment       String?
+  status        String   @default("pending") // pending, approved, rejected
   helpfulVotes  Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -162,6 +165,7 @@ model Order {
   shippingCost    Decimal     @default(0.00) @db.Decimal(10, 2)
   items           OrderItem[]
   payments        Payment[]
+  refunds         Refund[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 }
@@ -217,4 +221,46 @@ model PaymentMethod {
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model Refund {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(10, 2)
+  reason    String?
+  status    String   @default("pending") // pending, completed, failed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DeliveryOption {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  cost          Decimal  @db.Decimal(10, 2)
+  estimatedDays Int
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Faq {
+  id        String   @id @default(uuid())
+  question  String
+  answer    String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action    String
+  resource  String
+  details   String?  // JSON stringified details
+  ipAddress String?
+  createdAt DateTime @default(now())
 }

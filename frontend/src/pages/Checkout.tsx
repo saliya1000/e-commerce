@@ -241,13 +241,13 @@ const Checkout: React.FC = () => {
   if (!cart) return null;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
-      <SEO title="Checkout | i-love-shopping" description="Complete your purchase securely." />
+    <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+      <SEO title="Secure Checkout - Fast Shipping | i-love-shopping" description="Complete your purchase securely. Enjoy fast shipping and 100% safe checkout for all your premium pet products." />
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 400px', gap: '3rem', alignItems: 'start' }} className="checkout-grid">
         
         {/* Left Column: Form & Payment */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem' }}>Checkout</h1>
+          <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem' }}>Secure Checkout</h1>
           
           {/* Main Card */}
           <div className="glass-panel" style={{ padding: '2.5rem', background: '#FDFBF7', borderRadius: '16px', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.05)' }}>
@@ -279,41 +279,41 @@ const Checkout: React.FC = () => {
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
                     <div className="input-group">
-                      <label>Full Name</label>
-                      <input required type="text" name="name" value={shippingAddress.name} onChange={handleInputChange} placeholder="John Doe" />
+                      <label htmlFor="name">Full Name</label>
+                      <input id="name" required type="text" name="name" value={shippingAddress.name} onChange={handleInputChange} placeholder="John Doe" />
                       {formErrors.name && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.name}</span>}
                     </div>
                     <div className="input-group">
-                      <label>Email Address</label>
-                      <input required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" readOnly={!!user} style={user ? { backgroundColor: 'var(--color-bg-alt, #f9fafb)', cursor: 'not-allowed', color: 'var(--color-text-light, #6b7280)' } : {}} />
+                      <label htmlFor="email">Email Address</label>
+                      <input id="email" required type="email" name="email" value={shippingAddress.email} onChange={handleInputChange} placeholder="john@example.com" readOnly={!!user} style={user ? { backgroundColor: 'var(--color-bg-alt, #f9fafb)', cursor: 'not-allowed', color: 'var(--color-text-light, #6b7280)' } : {}} />
                       {formErrors.email && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.email}</span>}
                     </div>
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
-                    <label>Phone Number</label>
-                    <input required type="tel" name="phone" value={shippingAddress.phone} onChange={handleInputChange} placeholder="+358 40 123 4567" />
+                    <label htmlFor="phone">Phone Number</label>
+                    <input id="phone" required type="tel" name="phone" value={shippingAddress.phone} onChange={handleInputChange} placeholder="+358 40 123 4567" />
                     {formErrors.phone && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.phone}</span>}
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
-                    <label>Address</label>
-                    <input required type="text" name="line1" value={shippingAddress.line1} onChange={handleInputChange} placeholder="123 Happy St" />
+                    <label htmlFor="line1">Address</label>
+                    <input id="line1" required type="text" name="line1" value={shippingAddress.line1} onChange={handleInputChange} placeholder="123 Happy St" />
                     {formErrors.line1 && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.line1}</span>}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
                     <div className="input-group">
-                      <label>City</label>
-                      <input required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} />
+                      <label htmlFor="city">City</label>
+                      <input id="city" required type="text" name="city" value={shippingAddress.city} onChange={handleInputChange} />
                       {formErrors.city && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.city}</span>}
                     </div>
                     <div className="input-group">
-                      <label>Postal Code</label>
-                      <input required type="text" name="postal_code" value={shippingAddress.postal_code} onChange={handleInputChange} />
+                      <label htmlFor="postal_code">Postal Code</label>
+                      <input id="postal_code" required type="text" name="postal_code" value={shippingAddress.postal_code} onChange={handleInputChange} />
                       {formErrors.postal_code && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.postal_code}</span>}
                     </div>
                   </div>
                   <div className="input-group" style={{ marginTop: '1.25rem' }}>
-                    <label>Country</label>
-                    <input required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} />
+                    <label htmlFor="country">Country</label>
+                    <input id="country" required type="text" name="country" value={shippingAddress.country} onChange={handleInputChange} />
                     {formErrors.country && <span style={{ color: 'red', fontSize: '0.8rem', marginTop: '0.25rem' }}>{formErrors.country}</span>}
                   </div>
                   
@@ -438,15 +438,15 @@ const Checkout: React.FC = () => {
                     {/* Editable Cart Controls */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', background: '#FDFBF7' }}>
-                        <button type="button" onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={clientSecret !== ''} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: clientSecret ? 'not-allowed' : 'pointer', color: 'var(--text-muted)' }}>
+                        <button type="button" aria-label={`Decrease quantity of ${item.product.name}`} onClick={() => updateQuantity(item.id, item.quantity - 1)} disabled={clientSecret !== ''} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: clientSecret ? 'not-allowed' : 'pointer', color: 'var(--text-muted)' }}>
                           <Minus size={14} />
                         </button>
                         <span style={{ padding: '4px 8px', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem', minWidth: '30px', textAlign: 'center' }}>{item.quantity}</span>
-                        <button type="button" onClick={() => updateQuantity(item.id, item.quantity + 1)} disabled={clientSecret !== '' || item.quantity >= item.product.stockQuantity} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: (clientSecret !== '' || item.quantity >= item.product.stockQuantity) ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', opacity: item.quantity >= item.product.stockQuantity ? 0.3 : 1 }} title={item.quantity >= item.product.stockQuantity ? "Max stock reached" : ""}>
+                        <button type="button" aria-label={`Increase quantity of ${item.product.name}`} onClick={() => updateQuantity(item.id, item.quantity + 1)} disabled={clientSecret !== '' || item.quantity >= item.product.stockQuantity} style={{ padding: '6px 10px', background: 'transparent', border: 'none', cursor: (clientSecret !== '' || item.quantity >= item.product.stockQuantity) ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', opacity: item.quantity >= item.product.stockQuantity ? 0.3 : 1 }} title={item.quantity >= item.product.stockQuantity ? "Max stock reached" : ""}>
                           <Plus size={14} />
                         </button>
                       </div>
-                      <button type="button" onClick={() => removeFromCart(item.id)} disabled={clientSecret !== ''} style={{ background: 'none', border: 'none', color: '#E53E3E', cursor: clientSecret ? 'not-allowed' : 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                      <button type="button" aria-label={`Remove ${item.product.name} from cart`} onClick={() => removeFromCart(item.id)} disabled={clientSecret !== ''} style={{ background: 'none', border: 'none', color: '#E53E3E', cursor: clientSecret ? 'not-allowed' : 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                         <Trash2 size={14} /> Remove
                       </button>
                     </div>
@@ -474,7 +474,7 @@ const Checkout: React.FC = () => {
         </div>
 
       </div>
-    </div>
+    </main>
   );
 };
 

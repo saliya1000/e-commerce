@@ -4,7 +4,7 @@ import axios from 'axios';
 // We use localhost:3000 for local development (assuming the React app is served on 5173).
 // In production, this might be a relative path if served from the same domain.
 const api = axios.create({
-  baseURL: 'http://localhost:3005/api',
+  baseURL: '/api',
   withCredentials: true, // Important for sending and receiving the HttpOnly refresh token cookie
 });
 
@@ -39,7 +39,7 @@ api.interceptors.response.use(
       try {
         // Attempt to refresh the token using the HttpOnly cookie
         const refreshResponse = await axios.post(
-          'http://localhost:3005/api/auth/refresh',
+          '/api/auth/refresh',
           {},
           { withCredentials: true }
         );

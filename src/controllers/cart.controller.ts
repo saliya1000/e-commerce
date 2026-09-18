@@ -1,5 +1,20 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
+import Joi from 'joi';
+
+export const addToCartSchema = Joi.object({
+  guestId: Joi.string().allow(null, '').optional(),
+  productId: Joi.string().uuid().required(),
+  quantity: Joi.number().integer().min(1).optional()
+});
+
+export const updateCartItemSchema = Joi.object({
+  quantity: Joi.number().integer().min(1).required()
+});
+
+export const mergeCartSchema = Joi.object({
+  guestId: Joi.string().required()
+});
 
 export const getCart = async (req: Request, res: Response) => {
   try {

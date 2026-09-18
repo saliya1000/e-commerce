@@ -29,9 +29,10 @@ const Footer: React.FC = () => {
         <div>
           <h4 className="font-bold mb-4">Company</h4>
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>About Us</a></li>
-            <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Contact Us</a></li>
-            <li><a href="#" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Careers</a></li>
+            <li><Link to="/about" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>About Us</Link></li>
+            <li><Link to="/contact" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Contact Us</Link></li>
+            <li><Link to="/faq" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>FAQ</Link></li>
+            <li><Link to="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Terms & Privacy</Link></li>
             <li><Link to="/track-order" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Track Order</Link></li>
           </ul>
         </div>

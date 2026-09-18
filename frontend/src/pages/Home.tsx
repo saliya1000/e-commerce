@@ -25,10 +25,11 @@ const Home: React.FC = () => {
   return (
     <div style={{ paddingBottom: '0' }}>
       <SEO 
-        title="i-love-shopping | Premium Pet Products" 
-        description="Explore our premium collection of food, toys, and accessories for your beloved pets." 
+        title="Premium Pet Products & Accessories | i-love-shopping" 
+        description="Explore our premium collection of dog food, cat toys, bird accessories, and more. Shop i-love-shopping for the best quality pet supplies online today!" 
       />
       <SubNavbar />
+      <main>
       {/* 2. Hero Banner Section */}
       <section style={{ 
         background: 'linear-gradient(135deg, var(--bg-muted) 0%, #FFF5F2 100%)',
@@ -38,10 +39,11 @@ const Home: React.FC = () => {
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}>
           <div style={{ flex: 1, maxWidth: '600px' }}>
             <h1 className="font-extrabold text-main" style={{ fontSize: '3.5rem', lineHeight: 1.1, marginBottom: '1.5rem' }}>
-              Spoil Your <span className="text-primary">Best Friend</span> Today!
+              Spoil Your <span className="text-primary">Best Friend</span> Today! <br />
+              <span style={{ fontSize: '2rem' }}>Premium Pet Products & Supplies</span>
             </h1>
             <p className="text-muted" style={{ fontSize: '1.25rem', marginBottom: '2.5rem' }}>
-              Explore our premium collection of food, toys, and accessories for your beloved pets.
+              Explore our premium collection of dog food, cat toys, and accessories for your beloved pets.
             </p>
             <button className="btn" onClick={() => navigate('/products')} style={{ display: 'inline-flex', width: 'auto', padding: '1rem 2rem', fontSize: '1.1rem', borderRadius: '9999px' }}>
               Shop Now
@@ -59,7 +61,7 @@ const Home: React.FC = () => {
 
       {/* 3. Quick Categories Grid */}
       <section className="container py-16">
-        <h2 className="text-center font-extrabold mb-12" style={{ fontSize: '2rem' }}>Shop by Category</h2>
+        <h2 className="text-center font-extrabold mb-12" style={{ fontSize: '2rem' }}>Shop Premium Pet Products by Category</h2>
         <div className="grid grid-cols-5 gap-6 category-grid">
           {[
             { name: 'Dogs', icon: '🐶', path: '/products?q=dog' },
@@ -90,7 +92,7 @@ const Home: React.FC = () => {
       {/* 5. Featured / Trending Products */}
       <section className="container py-16">
         <div className="flex justify-between items-center mb-12">
-          <h2 className="font-extrabold" style={{ fontSize: '2rem' }}>Trending Products</h2>
+          <h2 className="font-extrabold" style={{ fontSize: '2rem' }}>Trending Pet Supplies</h2>
           <Link to="/products" className="text-primary font-bold" style={{ textDecoration: 'none' }}>View All →</Link>
         </div>
         <div className="grid grid-cols-4 gap-6">
@@ -124,6 +126,7 @@ const Home: React.FC = () => {
           ))}
         </div>
       </section>
+      </main>
     </div>
   );
 };

@@ -21,6 +21,23 @@ export const addReview = async (req: Request, res: Response, next: NextFunction)
       return res.status(400).json({ error: 'You have already reviewed this product' });
     }
 
+    // Verify the user actually purchased the product
+    const hasPurchased = await prisma.orderItem.findFirst({
+      where: {
+        productId,
+        order: {
+          userId,
+          status: {
+            notIn: ['Pending Payment', 'Payment Failed', 'Cancelled']
+          }
+        }
+      }
+    });
+
+    if (!hasPurchased) {
+      return res.status(403).json({ error: 'You can only review products that you have successfully purchased.' });
+    }
+
     const review = await prisma.review.create({
       data: {
         userId,
@@ -46,7 +63,10 @@ export const getReviews = async (req: Request, res: Response, next: NextFunction
     const reviews = await prisma.review.findMany({
       where: { productId },
       include: { user: { select: { firstName: true, lastName: true } } },
-      orderBy: { createdAt: 'desc' }
+      orderBy: [
+        { helpfulVotes: 'desc' },
+        { createdAt: 'desc' }
+      ]
     });
     res.json(reviews);
   } catch (error) {

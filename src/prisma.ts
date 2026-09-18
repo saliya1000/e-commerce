@@ -39,6 +39,29 @@ const prisma = basePrisma.$extends({
         return decryptAddress(result);
       }
     },
+    user: {
+      async $allOperations({ operation, args, query }) {
+        if (args && (args as any).data) {
+          const data = (args as any).data;
+          if (data.firstName) data.firstName = encrypt(data.firstName as string);
+          if (data.lastName) data.lastName = encrypt(data.lastName as string);
+        }
+
+        const result = await query(args);
+
+        const decryptUser = (usr: any) => {
+          if (!usr) return usr;
+          if (usr.firstName) usr.firstName = decrypt(usr.firstName);
+          if (usr.lastName) usr.lastName = decrypt(usr.lastName);
+          return usr;
+        };
+
+        if (Array.isArray(result)) {
+          return result.map(decryptUser);
+        }
+        return decryptUser(result);
+      }
+    },
     order: {
       async $allOperations({ operation, args, query }) {
         if (args && (args as any).data) {

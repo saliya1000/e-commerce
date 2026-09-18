@@ -5,7 +5,7 @@ services:
     env_file:
       - .env
     ports:
-      - "5434:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -17,8 +17,8 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     ports:
-      - "5673:5672"
-      - "15673:15672"
+      - "5672:5672"
+      - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -37,7 +37,7 @@ services:
     build: .
     restart: on-failure
     ports:
-      - "3005:3000"
+      - "3000:3000"
     env_file:
       - .env
     environment:
@@ -45,6 +45,8 @@ services:
       - RABBITMQ_URL=amqp://rabbitmq:5672
     volumes:
       - ./uploads:/app/uploads
+      - ./server.cert:/app/server.cert:ro
+      - ./server.key:/app/server.key:ro
     depends_on:
       db:
         condition: service_healthy
@@ -56,14 +58,18 @@ services:
     build:
       context: ./frontend
     ports:
-      - "5175:80"
+      - "5173:80"
+      - "443:443"
+    volumes:
+      - ./server.cert:/etc/nginx/ssl/server.cert:ro
+      - ./server.key:/etc/nginx/ssl/server.key:ro
     depends_on:
       - api
 
   prisma-studio:
     build: .
     ports:
-      - "5557:5555"
+      - "5555:5555"
     env_file:
       - .env
     environment:

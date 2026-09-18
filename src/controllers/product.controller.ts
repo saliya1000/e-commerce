@@ -1,5 +1,37 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../prisma';
+import Joi from 'joi';
+
+export const createCategorySchema = Joi.object({
+  name: Joi.string().required(),
+  description: Joi.string().allow(null, '').optional(),
+  parentId: Joi.string().uuid().allow(null, '').optional()
+});
+
+export const createProductSchema = Joi.object({
+  name: Joi.string().required(),
+  description: Joi.string().required(),
+  price: Joi.number().positive().required(),
+  stockQuantity: Joi.number().integer().min(0).required(),
+  categoryId: Joi.string().uuid().required(),
+  brand: Joi.string().allow(null, '').optional(),
+  weightMetric: Joi.number().positive().allow(null, '').optional(),
+  weightImperial: Joi.number().positive().allow(null, '').optional(),
+  lengthMetric: Joi.number().positive().allow(null, '').optional(),
+  widthMetric: Joi.number().positive().allow(null, '').optional(),
+  heightMetric: Joi.number().positive().allow(null, '').optional(),
+  lengthImperial: Joi.number().positive().allow(null, '').optional(),
+  widthImperial: Joi.number().positive().allow(null, '').optional(),
+  heightImperial: Joi.number().positive().allow(null, '').optional(),
+  attributes: Joi.array().items(Joi.object({
+    name: Joi.string().required(),
+    value: Joi.string().required()
+  })).optional(),
+  images: Joi.array().items(Joi.object({
+    url: Joi.string().uri().required(),
+    isPrimary: Joi.boolean().optional()
+  })).optional()
+});
 
 export const createCategory = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -64,11 +96,12 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
 
     const query: any = { where: {} };
 
-    // Search by name or description
+    // Search by name or description using PostgreSQL fullTextSearch
     if (q) {
+      const searchQuery = String(q).trim().split(/\s+/).join(' | ');
       query.where.OR = [
-        { name: { contains: String(q), mode: 'insensitive' } },
-        { description: { contains: String(q), mode: 'insensitive' } }
+        { name: { search: searchQuery } },
+        { description: { search: searchQuery } }
       ];
     }
 
@@ -131,9 +164,10 @@ export const suggestProducts = async (req: Request, res: Response, next: NextFun
     const { q } = req.query;
     if (!q) return res.json([]);
 
+    const searchQuery = String(q).trim().split(/\s+/).join(' | ');
     const suggestions = await prisma.product.findMany({
       where: {
-        name: { contains: String(q), mode: 'insensitive' }
+        name: { search: searchQuery }
       },
       select: { id: true, name: true, brand: true },
       take: 5

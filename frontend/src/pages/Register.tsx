@@ -78,7 +78,7 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="auth-container">
+    <main className="auth-container">
       <div className="auth-box glass-panel">
         <Link to="/products" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', textDecoration: 'none', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
           <ArrowLeft size={16} /> Back to Store
@@ -92,10 +92,11 @@ const Register: React.FC = () => {
 
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label>Email</label>
+            <label htmlFor="email">Email</label>
             <div style={{ position: 'relative' }}>
               <Mail size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
+                id="email"
                 type="email"
                 placeholder="you@example.com"
                 value={email}
@@ -106,10 +107,11 @@ const Register: React.FC = () => {
           </div>
 
           <div className="input-group">
-            <label>Password</label>
+            <label htmlFor="password">Password</label>
             <div style={{ position: 'relative' }}>
               <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
+                id="password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
@@ -135,10 +137,11 @@ const Register: React.FC = () => {
           </div>
 
           <div className="input-group">
-            <label>Confirm Password</label>
+            <label htmlFor="confirmPassword">Confirm Password</label>
             <div style={{ position: 'relative' }}>
               <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
+                id="confirmPassword"
                 type="password"
                 placeholder="••••••••"
                 value={confirmPassword}
@@ -175,7 +178,7 @@ const Register: React.FC = () => {
           Already have an account? <Link to={`/login${location.search}`}>Sign in</Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 

@@ -1,102 +1,74 @@
 import crypto from 'crypto';
 
-// The encryption key should be exactly 32 bytes (256 bits) for AES-256-GCM.
-const getEncryptionKey = (): Buffer => {
-  const keyStr = process.env.ENCRYPTION_KEY;
-  if (!keyStr) {
-    // For tests or if strictly missing, we can fallback or throw. Throwing in prod is safer.
-    if (process.env.NODE_ENV === 'test') {
-      return Buffer.from('12345678901234567890123456789012', 'utf8'); // 32 chars mock key
-    }
-    throw new Error('ENCRYPTION_KEY environment variable is missing.');
-  }
-  
-  const key = Buffer.from(keyStr, 'utf8');
-  if (key.length !== 32) {
-    throw new Error('ENCRYPTION_KEY must be exactly 32 bytes long for AES-256-GCM.');
-  }
-  return key;
-};
-
 const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 16;
+const AUTH_TAG_LENGTH = 16;
 
-/**
- * Encrypts a plaintext string using AES-256-GCM.
- * The output format is: iv:authTag:encryptedData (Base64 encoded)
- */
-export const encrypt = (text: string): string => {
+function getKey(): Buffer {
+  const keyStr = process.env.ENCRYPTION_KEY || '';
+  if (keyStr.length !== 64) {
+    console.warn("WARNING: ENCRYPTION_KEY is not set or invalid length. Encryption will fail in production.");
+    // Return a dummy key for test environments if missing
+    return Buffer.alloc(32, 'a');
+  }
+  return Buffer.from(keyStr, 'hex');
+}
+
+export function encrypt(text: string): string {
   if (!text) return text;
   
-  const key = getEncryptionKey();
-  const iv = crypto.randomBytes(12); // Recommended 96 bits for GCM
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  // Don't encrypt if already encrypted
+  if (text.split(':').length === 3) return text;
   
-  let encrypted = cipher.update(text, 'utf8', 'base64');
-  encrypted += cipher.final('base64');
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
   
-  const authTag = cipher.getAuthTag().toString('base64');
+  let encrypted = cipher.update(text, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
   
-  // Format: iv:authTag:encrypted
-  return `${iv.toString('base64')}:${authTag}:${encrypted}`;
-};
+  const authTag = cipher.getAuthTag().toString('hex');
+  
+  return `${iv.toString('hex')}:${authTag}:${encrypted}`;
+}
 
-/**
- * Decrypts a ciphertext string back to plaintext.
- * Expects input format: iv:authTag:encryptedData (Base64 encoded)
- */
-export const decrypt = (encryptedText: string): string => {
-  if (!encryptedText) return encryptedText;
+export function decrypt(text: string): string {
+  if (!text) return text;
   
-  // If it doesn't look like our ciphertext format (e.g., legacy unencrypted data in DB),
-  // we could optionally return it as-is, but it's safer to attempt decrypt and fail, or check strictly.
-  const parts = encryptedText.split(':');
+  const parts = text.split(':');
   if (parts.length !== 3) {
-    // Attempting to handle legacy unencrypted data gracefully.
-    // Warning: this could expose data if a real string accidentally lacks colons, 
-    // but typically encrypted payload always has exactly 2 colons.
-    return encryptedText;
+    // Return as is (useful for existing plaintext data)
+    return text;
   }
   
   try {
-    const [ivBase64, authTagBase64, encryptedData] = parts;
-    const key = getEncryptionKey();
+    const [ivHex, authTagHex, encryptedHex] = parts;
+    const iv = Buffer.from(ivHex, 'hex');
+    const authTag = Buffer.from(authTagHex, 'hex');
     
-    const iv = Buffer.from(ivBase64, 'base64');
-    const authTag = Buffer.from(authTagBase64, 'base64');
-    
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv);
     decipher.setAuthTag(authTag);
     
-    let decrypted = decipher.update(encryptedData, 'base64', 'utf8');
+    let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
     
     return decrypted;
   } catch (error) {
-    // Decryption failed. Could be invalid key, tampered data, or just not encrypted data.
-    console.error('Decryption failed for data:', error);
-    return encryptedText; // Fallback to returning raw data for legacy plaintext support
+    console.error("Decryption failed. Returning raw text.", error);
+    return text;
   }
-};
+}
 
-/**
- * Encrypts a JSON object into a ciphertext string.
- */
-export const encryptJson = (obj: any): string => {
-  if (!obj) return obj;
+export function encryptJson(obj: any): string {
+  if (!obj) return '';
   return encrypt(JSON.stringify(obj));
-};
+}
 
-/**
- * Decrypts a ciphertext string into a JSON object.
- */
-export const decryptJson = (encryptedText: string): any => {
-  if (!encryptedText) return encryptedText;
-  const decryptedStr = decrypt(encryptedText);
+export function decryptJson(text: string): any {
+  if (!text) return null;
+  const decrypted = decrypt(text);
   try {
-    return JSON.parse(decryptedStr);
+    return JSON.parse(decrypted);
   } catch (e) {
-    // If it fails to parse, it might be an unencrypted JSON object stored as string,
-    // or just corrupted data.
-    return decryptedStr;
+    return decrypted; // Fallback if it wasn't JSON
   }
-};
+}

@@ -39,7 +39,8 @@ export const sendEmail = async (to: string, subject: string, text: string, html?
 
 // Keep existing mock mailer function and update to use Mailhog
 export const sendPasswordResetEmail = async (email: string, token: string) => {
-  const link = `http://localhost:5173/reset-password?token=${token}`;
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+  const link = `${clientUrl}/reset-password?token=${token}`;
   await sendEmail(
     email,
     "Password Reset Request",

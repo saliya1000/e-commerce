@@ -3,14 +3,21 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { SEO } from '../components/SEO';
-import { Users, Package } from 'lucide-react';
+import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud } from 'lucide-react';
+
+import { AdminCategories } from '../components/admin/AdminCategories';
+import { AdminProducts } from '../components/admin/AdminProducts';
+import { AdminOrders } from '../components/admin/AdminOrders';
+import { AdminRefunds } from '../components/admin/AdminRefunds';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<any[]>([]);
+  const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [newFaq, setNewFaq] = useState({ question: '', answer: '', order: 0 });
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== 'admin') {
@@ -21,8 +28,42 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
+    } else if (activeTab === 'faqs') {
+      fetchFaqs();
     }
   }, [activeTab]);
+
+  const fetchFaqs = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/admin/faqs');
+      setFaqs(res.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateFaq = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/admin/faqs', newFaq);
+      setNewFaq({ question: '', answer: '', order: 0 });
+      fetchFaqs();
+    } catch (err) {
+      alert('Failed to create FAQ');
+    }
+  };
+
+  const handleDeleteFaq = async (id: string) => {
+    try {
+      await api.delete(`/admin/faqs/${id}`);
+      fetchFaqs();
+    } catch (err) {
+      alert('Failed to delete FAQ');
+    }
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -63,10 +104,45 @@ const AdminDashboard: React.FC = () => {
         </button>
 
         <button 
+          onClick={() => setActiveTab('categories')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'categories' ? 'var(--primary)' : 'transparent', color: activeTab === 'categories' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <FolderTree size={18} /> Categories
+        </button>
+
+        <button 
           onClick={() => setActiveTab('products')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'products' ? 'var(--primary)' : 'transparent', color: activeTab === 'products' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
         >
-          <Package size={18} /> Bulk Products
+          <Package size={18} /> Products
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('orders')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'orders' ? 'var(--primary)' : 'transparent', color: activeTab === 'orders' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <ShoppingCart size={18} /> Orders
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('refunds')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'refunds' ? 'var(--primary)' : 'transparent', color: activeTab === 'refunds' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <RefreshCcw size={18} /> Refunds
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('bulk-upload')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'bulk-upload' ? 'var(--primary)' : 'transparent', color: activeTab === 'bulk-upload' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <UploadCloud size={18} /> Bulk Upload
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('faqs')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'faqs' ? 'var(--primary)' : 'transparent', color: activeTab === 'faqs' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <HelpCircle size={18} /> Manage FAQs
         </button>
       </div>
 
@@ -114,7 +190,12 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
         
-        {activeTab === 'products' && (
+        {activeTab === 'categories' && <AdminCategories />}
+        {activeTab === 'products' && <AdminProducts />}
+        {activeTab === 'orders' && <AdminOrders />}
+        {activeTab === 'refunds' && <AdminRefunds />}
+
+        {activeTab === 'bulk-upload' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>
             <h3 className="font-bold mb-6" style={{ fontSize: '1.5rem' }}>Bulk Upload Products</h3>
             <p className="mb-4">Upload a JSON array of products to add them to the database.</p>
@@ -123,10 +204,10 @@ const AdminDashboard: React.FC = () => {
               className="form-input mb-4" 
               rows={10} 
               placeholder='[{"name": "Dog Toy", "description": "...", "price": 10.99, "stockQuantity": 100, "categoryId": "...", "brand": "PetCo"}]'
-              style={{ fontFamily: 'monospace' }}
+              style={{ fontFamily: 'monospace', width: '100%' }}
             ></textarea>
             <button 
-              className="btn"
+              className="btn btn-primary"
               onClick={async () => {
                 try {
                   const val = (document.getElementById('bulk-json') as HTMLTextAreaElement).value;
@@ -140,9 +221,40 @@ const AdminDashboard: React.FC = () => {
             >Upload JSON</button>
           </div>
         )}
+
+        {activeTab === 'faqs' && (
+          <div className="glass-panel" style={{ padding: '2rem' }}>
+            <h3 className="font-bold mb-6" style={{ fontSize: '1.5rem' }}>FAQ Management</h3>
+            
+            <form onSubmit={handleCreateFaq} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem', padding: '1rem', background: 'var(--bg-muted)', borderRadius: '8px' }}>
+              <h4 className="font-bold">Add New FAQ</h4>
+              <input type="text" placeholder="Question" className="form-input" style={{ width: '100%', padding: '0.5rem' }} value={newFaq.question} onChange={e => setNewFaq({...newFaq, question: e.target.value})} required />
+              <textarea placeholder="Answer" className="form-input" style={{ width: '100%', padding: '0.5rem' }} value={newFaq.answer} onChange={e => setNewFaq({...newFaq, answer: e.target.value})} required />
+              <input type="number" placeholder="Order" className="form-input" style={{ width: '100%', padding: '0.5rem' }} value={newFaq.order} onChange={e => setNewFaq({...newFaq, order: parseInt(e.target.value) || 0})} />
+              <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Add FAQ</button>
+            </form>
+
+            {loading ? <p>Loading...</p> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {faqs.map(faq => (
+                  <div key={faq.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'var(--bg-muted)', borderRadius: '8px' }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 0.5rem' }}>{faq.question}</h4>
+                      <p style={{ margin: 0, color: 'var(--text-muted)' }}>{faq.answer}</p>
+                    </div>
+                    <button onClick={() => handleDeleteFaq(faq.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'red' }}>
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default AdminDashboard;
+
