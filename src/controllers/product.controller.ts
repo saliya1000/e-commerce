@@ -161,16 +161,19 @@ export const getProductById = async (req: Request, res: Response, next: NextFunc
 // Dynamic search suggestions
 export const suggestProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { q } = req.query;
-    if (!q) return res.json([]);
+    const queryStr = req.query.query || req.query.q;
+    if (!queryStr) return res.json([]);
 
-    const searchQuery = String(q).trim().split(/\s+/).join(' | ');
+    const searchStr = String(queryStr).trim();
     const suggestions = await prisma.product.findMany({
       where: {
-        name: { search: searchQuery }
+        OR: [
+          { name: { contains: searchStr, mode: 'insensitive' } },
+          { description: { contains: searchStr, mode: 'insensitive' } }
+        ]
       },
-      select: { id: true, name: true, brand: true },
-      take: 5
+      select: { id: true, name: true, brand: true, price: true, images: true },
+      take: 6
     });
     res.json(suggestions);
   } catch (error) {

@@ -166,8 +166,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
 
     const hashedRT = hashToken(refreshToken);
     const savedToken = await prisma.refreshToken.findUnique({
-      where: { tokenHash: hashedRT },
-      include: { user: true }
+      where: { tokenHash: hashedRT }
     });
 
     if (!savedToken || savedToken.isRevoked) {
@@ -178,6 +177,14 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
       return res.status(401).json({ error: 'Invalid refresh token' });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: savedToken.userId }
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid user' });
+    }
+
     // Revoke old token
     await prisma.refreshToken.update({
       where: { id: savedToken.id },
@@ -185,8 +192,8 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     });
 
     // Generate new Tokens (Refresh Token Rotation)
-    const newAccessToken = generateAccessToken(savedToken.user.id, savedToken.user.role);
-    const newRefreshToken = generateRefreshToken(savedToken.user.id);
+    const newAccessToken = generateAccessToken(user.id, user.role);
+    const newRefreshToken = generateRefreshToken(user.id);
     const newHashedRT = hashToken(newRefreshToken);
 
     const expiresAt = new Date();
@@ -195,7 +202,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     await prisma.refreshToken.create({
       data: {
         tokenHash: newHashedRT,
-        userId: savedToken.user.id,
+        userId: user.id,
         expiresAt
       }
     });
@@ -210,12 +217,12 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     res.json({ 
       accessToken: newAccessToken,
       user: {
-        id: savedToken.user.id,
-        email: savedToken.user.email,
-        role: savedToken.user.role,
-        firstName: savedToken.user.firstName,
-        lastName: savedToken.user.lastName,
-        hasPassword: !!savedToken.user.passwordHash
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        hasPassword: !!user.passwordHash
       }
     });
   } catch (error) {

@@ -373,6 +373,18 @@ const Account: React.FC = () => {
       <div className="glass-panel" style={{ background: 'var(--bg)', borderRadius: '16px', padding: '2rem', border: '1px solid var(--border)' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
           
+          {(user?.role === 'admin' || user?.role === 'superadmin') && (
+            <div onClick={() => window.open('/admin', '_blank')} style={{ display: 'flex', gap: '1rem', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--primary)', cursor: 'pointer', transition: 'box-shadow 0.2s', background: 'var(--bg-muted)' }} className="hover-card">
+              <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldCheck size={24} color="#6366f1" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 600, margin: '0 0 0.25rem', color: 'var(--primary)' }}>Manage Store</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>Go to Admin Dashboard</p>
+              </div>
+            </div>
+          )}
+
           <div onClick={() => setActiveTab('orders')} style={{ display: 'flex', gap: '1rem', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)', cursor: 'pointer', transition: 'box-shadow 0.2s' }} className="hover-card">
             <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '1rem', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Box size={24} color="#6366f1" />

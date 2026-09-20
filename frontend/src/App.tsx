@@ -28,12 +28,16 @@ import TrackOrder from './pages/TrackOrder';
 import './styles/index.css';
 
 // Protected Route Wrapper
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
+const ProtectedRoute: React.FC<{ children: React.ReactNode; adminOnly?: boolean }> = ({ children, adminOnly }) => {
+  const { isAuthenticated, user } = useAuth();
   const location = useLocation();
   
   if (!isAuthenticated) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  }
+
+  if (adminOnly && user?.role !== 'admin' && user?.role !== 'superadmin') {
+    return <Navigate to="/" replace />;
   }
   
   return <>{children}</>;
@@ -74,7 +78,7 @@ const AppRoutes: React.FC = () => {
       <Route 
         path="/admin" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute adminOnly>
             <Layout><AdminDashboard /></Layout>
           </ProtectedRoute>
         } 

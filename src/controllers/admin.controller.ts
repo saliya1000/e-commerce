@@ -92,6 +92,45 @@ export const deleteReview = async (req: Request, res: Response, next: NextFuncti
   } catch (error) { next(error); }
 };
 
+export const getAdminProducts = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    
+    const query: any = { where: {} };
+
+    if (search) {
+      const searchStr = String(search).trim();
+      query.where.OR = [
+        { name: { contains: searchStr, mode: 'insensitive' } },
+        { category: { name: { contains: searchStr, mode: 'insensitive' } } }
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    query.skip = skip;
+    query.take = Number(limit);
+    query.include = { category: true, images: true };
+    query.orderBy = { createdAt: 'desc' };
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany(query),
+      prisma.product.count({ where: query.where })
+    ]);
+
+    res.json({
+      data: products,
+      meta: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const bulkUploadProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     let products: any[] = [];

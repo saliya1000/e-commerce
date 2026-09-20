@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Trash2, Edit2, Plus } from 'lucide-react';
+import { Trash2, Edit2, Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export const AdminProducts: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -8,6 +8,19 @@ export const AdminProducts: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   const initialFormState = {
     name: '', description: '', price: 0, stockQuantity: 0, categoryId: '', brand: '',
@@ -21,13 +34,16 @@ export const AdminProducts: React.FC = () => {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-  }, []);
+  }, [page, debouncedSearch]);
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/products?limit=50'); // Just fetch top 50 for admin view to avoid pagination for now
+      const res = await api.get('/admin/products', {
+        params: { page, limit: 10, search: debouncedSearch }
+      });
       setProducts(res.data.data);
+      setTotalPages(res.data.meta.totalPages);
     } catch (err) {
       console.error(err);
     } finally {
@@ -37,7 +53,7 @@ export const AdminProducts: React.FC = () => {
 
   const fetchCategories = async () => {
     try {
-      const res = await api.get('/categories');
+      const res = await api.get('/products/categories');
       setCategories(res.data);
     } catch (err) {
       console.error(err);
@@ -126,6 +142,21 @@ export const AdminProducts: React.FC = () => {
     <div className="glass-panel" style={{ padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h3 className="font-bold" style={{ fontSize: '1.5rem', margin: 0 }}>Products</h3>
+        
+        <div style={{ display: 'flex', gap: '1rem', flex: 1, margin: '0 2rem' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+            <input 
+              type="text" 
+              placeholder="Search products or categories..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="form-input"
+              style={{ width: '100%', paddingLeft: '2.5rem' }}
+            />
+            <Search size={18} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          </div>
+        </div>
+
         <button className="btn btn-primary" onClick={() => { setIsFormOpen(!isFormOpen); setEditingId(null); setFormData(initialFormState); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Plus size={18} /> Add Product
         </button>
@@ -178,6 +209,7 @@ export const AdminProducts: React.FC = () => {
       )}
 
       {loading ? <p>Loading...</p> : (
+        <>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
@@ -211,6 +243,31 @@ export const AdminProducts: React.FC = () => {
             ))}
           </tbody>
         </table>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '1rem', background: 'var(--bg-muted)', borderRadius: '8px' }}>
+          <button 
+            disabled={page <= 1}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: page <= 1 ? 0.5 : 1, cursor: page <= 1 ? 'not-allowed' : 'pointer' }}
+          >
+            <ChevronLeft size={18} /> Previous
+          </button>
+          
+          <span style={{ fontWeight: 'bold', color: 'var(--text-muted)' }}>
+            Page {page} of {Math.max(1, totalPages)}
+          </span>
+          
+          <button 
+            disabled={page >= totalPages || totalPages === 0}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: (page >= totalPages || totalPages === 0) ? 0.5 : 1, cursor: (page >= totalPages || totalPages === 0) ? 'not-allowed' : 'pointer' }}
+          >
+            Next <ChevronRight size={18} />
+          </button>
+        </div>
+        </>
       )}
     </div>
   );

@@ -7,7 +7,8 @@ import {
   updateCategory, deleteCategory,
   createRefund, getRefunds,
   getDeliveryOptions, createDeliveryOption, updateDeliveryOption, deleteDeliveryOption,
-  getFaqs, createFaq, updateFaq, deleteFaq
+  getFaqs, createFaq, updateFaq, deleteFaq,
+  getAdminProducts
 } from '../controllers/admin.controller';
 import { requireAuth, requireRole } from '../middlewares/auth';
 import { auditLogger } from '../middlewares/auditLogger';
@@ -34,6 +35,7 @@ router.put('/reviews/:reviewId/status', updateReviewStatus);
 router.delete('/reviews/:reviewId', deleteReview);
 
 // Products
+router.get('/products', getAdminProducts);
 router.post('/products/bulk', uploadCsv.single('file'), bulkUploadProducts);
 router.put('/products/:id', updateProduct);
 router.delete('/products/:id', deleteProduct);

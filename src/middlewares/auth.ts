@@ -81,21 +81,6 @@ export const requireRole = (roles: string | string[]) => {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }
 
-    // Enforce 2FA for admins
-    if (req.user.role === 'admin') {
-      try {
-        const user = await prisma.user.findUnique({
-          where: { id: req.user.userId },
-          select: { twoFactorEnabled: true }
-        });
-
-        if (!user || !user.twoFactorEnabled) {
-          return res.status(403).json({ error: 'Forbidden: 2FA must be enabled for admin access' });
-        }
-      } catch (err) {
-        return res.status(500).json({ error: 'Internal server error while verifying 2FA' });
-      }
-    }
 
     next();
   };

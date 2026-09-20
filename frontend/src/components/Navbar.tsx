@@ -9,6 +9,8 @@ interface Suggestion {
   id: string;
   name: string;
   brand?: string;
+  price: number;
+  images: any[];
 }
 
 const Navbar: React.FC = () => {
@@ -124,26 +126,42 @@ const Navbar: React.FC = () => {
           )}
 
           {/* Search Suggestions Dropdown */}
-          {showSuggestions && suggestions.length > 0 && (
+          {showSuggestions && searchQuery.trim().length > 1 && (
             <div className="glass fade-in" style={{
               position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '0.5rem',
               borderRadius: '12px', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem'
             }}>
-              {suggestions.map(s => (
-                <div key={s.id} 
-                  onClick={() => {
-                    setSearchQuery(s.name);
-                    setShowSuggestions(false);
-                    navigate(`/products/${s.id}`);
-                  }}
-                  style={{ padding: '0.5rem 1rem', cursor: 'pointer', borderRadius: '8px', transition: 'background 0.2s', display: 'flex', justifyContent: 'space-between' }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-muted)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{s.name}</span>
-                  {s.brand && <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{s.brand}</span>}
-                </div>
-              ))}
+              {suggestions.length === 0 ? (
+                <div style={{ padding: '0.5rem 1rem', color: 'var(--text-muted)', textAlign: 'center' }}>No products found</div>
+              ) : (
+                suggestions.map(s => (
+                  <div key={s.id} 
+                    onClick={() => {
+                      setSearchQuery(s.name);
+                      setShowSuggestions(false);
+                      navigate(`/products/${s.id}`);
+                    }}
+                    style={{ padding: '0.5rem 1rem', cursor: 'pointer', borderRadius: '8px', transition: 'background 0.2s', display: 'flex', alignItems: 'center', gap: '1rem' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-muted)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--bg-muted)', overflow: 'hidden', flexShrink: 0 }}>
+                      {s.images?.[0] ? (
+                        <img src={s.images[0].url} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.7rem' }}>No img</div>
+                      )}
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--text-main)', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
+                      {s.brand && <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{s.brand}</span>}
+                    </div>
+                    <div style={{ fontWeight: 'bold', color: 'var(--primary)', flexShrink: 0 }}>
+                      ${Number(s.price).toFixed(2)}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -156,8 +174,12 @@ const Navbar: React.FC = () => {
           style={{ position: 'relative' }} 
           onMouseEnter={() => setShowCartPreview(true)}
           onMouseLeave={() => setShowCartPreview(false)}
+          onClick={() => setShowCartPreview(!showCartPreview)}
         >
-          <Link to="/cart" aria-label="View Cart" style={{ color: 'var(--text-main)', textDecoration: 'none', display: 'flex', alignItems: 'center' }}>
+          <button 
+            aria-label="View Cart" 
+            style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+          >
             <ShoppingCart size={24} aria-hidden="true" className="hover-lift" />
             {cartItemsCount > 0 && (
               <span style={{ 
@@ -170,7 +192,7 @@ const Navbar: React.FC = () => {
                 {cartItemsCount}
               </span>
             )}
-          </Link>
+          </button>
 
           {/* Cart Preview Dropdown */}
           {showCartPreview && (
@@ -208,10 +230,13 @@ const Navbar: React.FC = () => {
                     )}
                   </div>
                   <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Total:</span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>Subtotal:</span>
                     <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-main)' }}>${cartTotal.toFixed(2)}</span>
                   </div>
-                  <Link to="/cart" className="btn btn-primary" style={{ textAlign: 'center' }}>View Cart</Link>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                    <Link to="/cart" className="btn btn-outline" style={{ textAlign: 'center', padding: '0.5rem' }}>View Cart</Link>
+                    <Link to="/checkout" className="btn btn-primary" style={{ textAlign: 'center', padding: '0.5rem' }}>Checkout</Link>
+                  </div>
                 </>
               )}
             </div>
@@ -220,11 +245,7 @@ const Navbar: React.FC = () => {
         
         {isAuthenticated ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {user?.role === 'admin' && (
-              <Link to="/admin" className="hover-lift" style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'none', marginRight: '1rem' }}>
-                Admin
-              </Link>
-            )}
+
             <Link to="/account" className="hover-lift" style={{ color: 'var(--text-main)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <div style={{
                 width: '32px', height: '32px', borderRadius: '50%',

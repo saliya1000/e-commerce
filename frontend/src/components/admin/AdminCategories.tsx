@@ -15,7 +15,7 @@ export const AdminCategories: React.FC = () => {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/categories');
+      const res = await api.get('/products/categories');
       setCategories(res.data);
     } catch (err) {
       console.error(err);
@@ -31,7 +31,7 @@ export const AdminCategories: React.FC = () => {
       if (editingId) {
         await api.put(`/admin/categories/${editingId}`, payload);
       } else {
-        await api.post('/categories', payload);
+        await api.post('/products/categories', payload);
       }
       setFormData({ name: '', description: '', parentId: '' });
       setEditingId(null);

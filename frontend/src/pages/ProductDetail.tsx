@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { Star, Package, ThumbsUp } from 'lucide-react';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
@@ -10,6 +10,8 @@ const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
@@ -21,6 +23,7 @@ const ProductDetail: React.FC = () => {
 
   useEffect(() => {
     const fetchProductAndReviews = async () => {
+      setLoading(true);
       try {
         const [prodRes, revRes] = await Promise.all([
           api.get(`/products/${id}`),
@@ -28,13 +31,27 @@ const ProductDetail: React.FC = () => {
         ]);
         setProduct(prodRes.data);
         setReviews(revRes.data);
+        const primaryImg = prodRes.data.images?.find((img: any) => img.isPrimary)?.url || prodRes.data.images?.[0]?.url || null;
+        setActiveImage(primaryImg);
+        
+        // Fetch related products
+        if (prodRes.data.categoryId) {
+          const relatedRes = await api.get('/products', { 
+            params: { categoryId: prodRes.data.categoryId, limit: 5 } 
+          });
+          // Filter out current product and keep up to 4
+          setRelatedProducts(relatedRes.data.data.filter((p: any) => p.id !== id).slice(0, 4));
+        }
       } catch (err) {
         console.error('Failed to fetch product details', err);
       } finally {
         setLoading(false);
       }
     };
-    if (id) fetchProductAndReviews();
+    if (id) {
+      window.scrollTo(0, 0); // Scroll to top when id changes
+      fetchProductAndReviews();
+    }
   }, [id]);
 
   const submitReview = async (e: React.FormEvent) => {
@@ -61,7 +78,7 @@ const ProductDetail: React.FC = () => {
   if (loading) return <div className="container py-16 text-center">Loading...</div>;
   if (!product) return <div className="container py-16 text-center">Product not found.</div>;
 
-  const primaryImage = product.images?.find((img: any) => img.isPrimary)?.url || null;
+  if (!product) return <div className="container py-16 text-center">Product not found.</div>;
 
   return (
     <main className="container py-12">
@@ -72,11 +89,32 @@ const ProductDetail: React.FC = () => {
       
       <div className="grid grid-cols-2 gap-12 mb-16">
         {/* Product Image */}
-        <div style={{ background: 'var(--bg-muted)', borderRadius: '1rem', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          {primaryImage ? (
-            <img src={primaryImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <Package size={120} color="var(--text-muted)" opacity={0.3} />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ background: 'var(--bg-muted)', borderRadius: '1rem', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {activeImage ? (
+              <img src={activeImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <Package size={120} color="var(--text-muted)" opacity={0.3} />
+            )}
+          </div>
+          {/* Thumbnails */}
+          {product.images && product.images.length > 1 && (
+            <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem' }}>
+              {product.images.map((img: any, idx: number) => (
+                <div 
+                  key={idx} 
+                  onClick={() => setActiveImage(img.url)}
+                  style={{ 
+                    width: '80px', height: '80px', borderRadius: '0.5rem', overflow: 'hidden', cursor: 'pointer', flexShrink: 0,
+                    border: activeImage === img.url ? '2px solid var(--primary)' : '2px solid transparent',
+                    opacity: activeImage === img.url ? 1 : 0.6,
+                    transition: 'opacity 0.2s, border 0.2s'
+                  }}
+                >
+                  <img src={img.url} alt={`${product.name} thumbnail`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
@@ -113,6 +151,28 @@ const ProductDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Related Products Section */}
+      {relatedProducts.length > 0 && (
+        <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '3rem', paddingBottom: '3rem' }}>
+          <h2 className="font-bold mb-8" style={{ fontSize: '1.75rem' }}>Related Products</h2>
+          <div className="grid grid-cols-4 gap-6">
+            {relatedProducts.map(prod => (
+              <Link to={`/products/${prod.id}`} key={prod.id} className="glass-panel" style={{ display: 'block', padding: '1rem', textDecoration: 'none', color: 'inherit' }}>
+                <div style={{ height: '200px', background: 'var(--bg-muted)', borderRadius: '0.5rem', marginBottom: '1rem', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {prod.images?.[0] ? (
+                    <img src={prod.images[0].url} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <Package size={48} color="var(--text-muted)" opacity={0.3} />
+                  )}
+                </div>
+                <h3 className="font-bold" style={{ fontSize: '1.1rem', marginBottom: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{prod.name}</h3>
+                <div style={{ color: 'var(--primary)', fontWeight: 'bold' }}>${Number(prod.price).toFixed(2)}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Reviews Section */}
       <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '3rem' }}>
