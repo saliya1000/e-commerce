@@ -44,7 +44,7 @@ const CartPage: React.FC = () => {
       <SEO title="Your Shopping Cart - Secure Checkout | i-love-shopping" description="Review items in your shopping cart before secure checkout. Get free shipping on premium pet supplies on orders over $50." />
       <h1 style={{ textAlign: 'left', marginBottom: '2rem' }}>Your Shopping Cart</h1>
       
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '3rem', alignItems: 'start' }}>
+      <div className="checkout-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 7fr) minmax(0, 5fr)', gap: '3rem', alignItems: 'start' }}>
         <div>
           {!cart || cart.items.length === 0 ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)' }}>

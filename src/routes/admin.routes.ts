@@ -8,7 +8,7 @@ import {
   createRefund, getRefunds,
   getDeliveryOptions, createDeliveryOption, updateDeliveryOption, deleteDeliveryOption,
   getFaqs, createFaq, updateFaq, deleteFaq,
-  getAdminProducts
+  getAdminProducts, promoteToAdmin, getAdminReports, downloadPdfReport
 } from '../controllers/admin.controller';
 import { requireAuth, requireRole } from '../middlewares/auth';
 import { auditLogger } from '../middlewares/auditLogger';
@@ -22,6 +22,7 @@ router.use(requireAuth, requireRole('admin'), auditLogger);
 // Users
 router.get('/users', getUsers);
 router.put('/users/:userId/role', updateUserRole);
+router.post('/promote', promoteToAdmin);
 
 // Orders & Refunds
 router.get('/orders', getAllOrders);
@@ -55,5 +56,9 @@ router.get('/faqs', getFaqs);
 router.post('/faqs', createFaq);
 router.put('/faqs/:id', updateFaq);
 router.delete('/faqs/:id', deleteFaq);
+
+// Reports
+router.get('/reports/download', downloadPdfReport);
+router.get('/reports', getAdminReports);
 
 export default router;

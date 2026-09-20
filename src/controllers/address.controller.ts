@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
 import Joi from 'joi';
+import { encrypt, decrypt } from '../utils/encryption';
 
 export const addressSchema = Joi.object({
   firstName: Joi.string().required(),
@@ -24,7 +25,16 @@ export const getAddresses = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json(addresses);
+    const decryptedAddresses = addresses.map(addr => ({
+      ...addr,
+      addressLine1: decrypt(addr.addressLine1),
+      addressLine2: addr.addressLine2 ? decrypt(addr.addressLine2) : null,
+      city: decrypt(addr.city),
+      postalCode: decrypt(addr.postalCode),
+      phoneNumber: addr.phoneNumber ? decrypt(addr.phoneNumber) : null,
+    }));
+
+    res.json(decryptedAddresses);
   } catch (error) {
     console.error('Failed to fetch addresses:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -54,11 +64,11 @@ export const createAddress = async (req: Request, res: Response) => {
         userId,
         firstName,
         lastName,
-        addressLine1,
-        addressLine2,
-        city,
-        postalCode,
-        phoneNumber,
+        addressLine1: encrypt(addressLine1),
+        addressLine2: addressLine2 ? encrypt(addressLine2) : null,
+        city: encrypt(city),
+        postalCode: encrypt(postalCode),
+        phoneNumber: phoneNumber ? encrypt(phoneNumber) : null,
         country,
         isDefault: isDefault || false,
       },
@@ -86,9 +96,17 @@ export const updateAddress = async (req: Request, res: Response) => {
       });
     }
 
+    const { addressLine1, addressLine2, city, postalCode, phoneNumber } = req.body;
+    const updateData = { ...req.body };
+    if (addressLine1) updateData.addressLine1 = encrypt(addressLine1);
+    if (addressLine2 !== undefined) updateData.addressLine2 = addressLine2 ? encrypt(addressLine2) : null;
+    if (city) updateData.city = encrypt(city);
+    if (postalCode) updateData.postalCode = encrypt(postalCode);
+    if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber ? encrypt(phoneNumber) : null;
+
     const updatedAddress = await prisma.address.update({
       where: { id, userId }, // Ensure user owns the address
-      data: req.body,
+      data: updateData,
     });
 
     res.json(updatedAddress);

@@ -3,18 +3,26 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { SEO } from '../components/SEO';
-import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud } from 'lucide-react';
+import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart } from 'lucide-react';
 
 import { AdminCategories } from '../components/admin/AdminCategories';
 import { AdminProducts } from '../components/admin/AdminProducts';
 import { AdminOrders } from '../components/admin/AdminOrders';
 import { AdminRefunds } from '../components/admin/AdminRefunds';
+import { AdminSearch } from '../components/admin/AdminSearch';
+import { AdminPagination } from '../components/admin/AdminPagination';
+import { AdminReports } from '../components/admin/AdminReports';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('users');
+  const [activeTab, setActiveTab] = useState('reports');
   const [users, setUsers] = useState<any[]>([]);
+  const [userPage, setUserPage] = useState(1);
+  const [userTotalPages, setUserTotalPages] = useState(1);
+  const [userSearch, setUserSearch] = useState('');
+  const [userDebouncedSearch, setUserDebouncedSearch] = useState('');
+
   const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [newFaq, setNewFaq] = useState({ question: '', answer: '', order: 0 });
@@ -26,9 +34,21 @@ const AdminDashboard: React.FC = () => {
   }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
+    const handler = setTimeout(() => {
+      setUserDebouncedSearch(userSearch);
+      setUserPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [userSearch]);
+
+  useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
-    } else if (activeTab === 'faqs') {
+    }
+  }, [activeTab, userPage, userDebouncedSearch]);
+
+  useEffect(() => {
+    if (activeTab === 'faqs') {
       fetchFaqs();
     }
   }, [activeTab]);
@@ -68,8 +88,11 @@ const AdminDashboard: React.FC = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/admin/users');
-      setUsers(res.data);
+      const res = await api.get('/admin/users', {
+        params: { page: userPage, limit: 10, search: userDebouncedSearch }
+      });
+      setUsers(res.data.data);
+      setUserTotalPages(res.data.meta.totalPages);
     } catch (err) {
       console.error(err);
     } finally {
@@ -96,6 +119,13 @@ const AdminDashboard: React.FC = () => {
       <div className="glass-panel" style={{ width: '250px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', padding: '0 1rem' }}>Admin Panel</h2>
         
+        <button 
+          onClick={() => setActiveTab('reports')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'reports' ? 'var(--primary)' : 'transparent', color: activeTab === 'reports' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <BarChart size={18} /> Dashboard Overview
+        </button>
+
         <button 
           onClick={() => setActiveTab('users')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'users' ? 'var(--primary)' : 'transparent', color: activeTab === 'users' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
@@ -150,7 +180,10 @@ const AdminDashboard: React.FC = () => {
       <div style={{ flex: 1 }}>
         {activeTab === 'users' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>
-            <h3 className="font-bold mb-6" style={{ fontSize: '1.5rem' }}>User Management</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 className="font-bold" style={{ fontSize: '1.5rem', margin: 0 }}>User Management</h3>
+              <AdminSearch search={userSearch} setSearch={setUserSearch} placeholder="Search users by email or name..." />
+            </div>
             {loading ? <p>Loading...</p> : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
@@ -187,6 +220,10 @@ const AdminDashboard: React.FC = () => {
                 </tbody>
               </table>
             )}
+            
+            {!loading && users.length > 0 && (
+              <AdminPagination page={userPage} totalPages={userTotalPages} setPage={setUserPage} />
+            )}
           </div>
         )}
         
@@ -194,6 +231,7 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'products' && <AdminProducts />}
         {activeTab === 'orders' && <AdminOrders />}
         {activeTab === 'refunds' && <AdminRefunds />}
+        {activeTab === 'reports' && <AdminReports />}
 
         {activeTab === 'bulk-upload' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>

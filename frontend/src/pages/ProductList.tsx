@@ -110,9 +110,9 @@ const ProductList: React.FC = () => {
       />
       <h1 className="sr-only" style={{ display: 'none' }}>Premium Pet Products Catalog</h1>
 
-      <div style={{ display: 'flex', flex: 1, padding: '2rem', gap: '2rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
+      <div className="flex-col-mobile p-mobile-4" style={{ display: 'flex', flex: 1, padding: '2rem', gap: '2rem', maxWidth: '1400px', margin: '0 auto', width: '100%' }}>
         {/* Faceted Search Sidebar */}
-        <aside style={{ width: '250px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <aside className="w-full-mobile" style={{ width: '250px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           
           {/* Category Widget */}
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
@@ -241,9 +241,9 @@ const ProductList: React.FC = () => {
               <p className="text-muted">Try adjusting your filters or search term.</p>
             </div>
           ) : (
-            <div style={{ 
+            <div className="product-grid" style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', 
               gap: '2rem' 
             }}>
               {products.map((product) => (

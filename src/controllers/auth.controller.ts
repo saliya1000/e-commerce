@@ -76,6 +76,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       data: {
         email,
         passwordHash,
+        role: 'USER',
       },
       select: { id: true, email: true, role: true, createdAt: true }
     });

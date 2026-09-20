@@ -87,7 +87,7 @@ const ProductDetail: React.FC = () => {
         description={`${product.description.substring(0, 130)}... Buy ${product.name} and other premium pet supplies at i-love-shopping.`} 
       />
       
-      <div className="grid grid-cols-2 gap-12 mb-16">
+      <div className="grid grid-cols-2 md:grid-cols-1 gap-12 mb-16">
         {/* Product Image */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ background: 'var(--bg-muted)', borderRadius: '1rem', minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
@@ -111,7 +111,7 @@ const ProductDetail: React.FC = () => {
                     transition: 'opacity 0.2s, border 0.2s'
                   }}
                 >
-                  <img src={img.url} alt={`${product.name} thumbnail`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={img.thumbnailUrl || img.url} alt={`${product.name} thumbnail`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               ))}
             </div>
@@ -156,12 +156,12 @@ const ProductDetail: React.FC = () => {
       {relatedProducts.length > 0 && (
         <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '3rem', paddingBottom: '3rem' }}>
           <h2 className="font-bold mb-8" style={{ fontSize: '1.75rem' }}>Related Products</h2>
-          <div className="grid grid-cols-4 gap-6">
+          <div className="grid grid-cols-4 md:grid-cols-2 gap-6">
             {relatedProducts.map(prod => (
               <Link to={`/products/${prod.id}`} key={prod.id} className="glass-panel" style={{ display: 'block', padding: '1rem', textDecoration: 'none', color: 'inherit' }}>
                 <div style={{ height: '200px', background: 'var(--bg-muted)', borderRadius: '0.5rem', marginBottom: '1rem', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {prod.images?.[0] ? (
-                    <img src={prod.images[0].url} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={prod.images[0].mediumUrl || prod.images[0].url} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <Package size={48} color="var(--text-muted)" opacity={0.3} />
                   )}

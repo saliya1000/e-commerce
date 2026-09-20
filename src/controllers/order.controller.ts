@@ -6,7 +6,7 @@ import { publishRefundStatus } from '../utils/amqp';
 import { calculateTotal } from '../utils/cartCalculations';
 import { AddressValidatorService } from '../utils/AddressValidatorService';
 import { validateAddressWithNominatim } from '../utils/nominatimValidator';
-import { decrypt } from '../utils/encryption';
+import { decrypt, encrypt, encryptJson, decryptJson } from '../utils/encryption';
 import Joi from 'joi';
 
 export const checkoutSchema = Joi.object({
@@ -125,7 +125,7 @@ export const checkout = async (req: Request, res: Response) => {
           where: { id: existingOrderId },
           data: {
             totalAmount,
-            shippingAddress,
+            shippingAddress: encryptJson(shippingAddress),
             shippingMethod: shippingMethod || 'standard',
             shippingCost,
             items: {
@@ -147,7 +147,7 @@ export const checkout = async (req: Request, res: Response) => {
           guestId: userId ? null : guestId,
           status: 'Pending Payment',
           totalAmount,
-          shippingAddress,
+          shippingAddress: encryptJson(shippingAddress),
           shippingMethod: shippingMethod || 'standard',
           shippingCost,
           items: {
@@ -206,10 +206,10 @@ export const checkout = async (req: Request, res: Response) => {
             userId,
             firstName,
             lastName,
-            addressLine1: shippingAddress.line1,
-            city: shippingAddress.city,
-            postalCode: shippingAddress.postal_code,
-            phoneNumber: shippingAddress.phone,
+            addressLine1: encrypt(shippingAddress.line1),
+            city: encrypt(shippingAddress.city),
+            postalCode: encrypt(shippingAddress.postal_code),
+            phoneNumber: shippingAddress.phone ? encrypt(shippingAddress.phone) : null,
             country: shippingAddress.country,
             isDefault: true
           }
@@ -312,7 +312,12 @@ export const getOrders = async (req: Request, res: Response) => {
       orderBy: orderByClause
     });
 
-    res.json(orders);
+    const decryptedOrders = orders.map(order => ({
+      ...order,
+      shippingAddress: decryptJson(order.shippingAddress)
+    }));
+
+    res.json(decryptedOrders);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to fetch orders' });
@@ -389,7 +394,12 @@ export const getOrder = async (req: Request, res: Response) => {
       return;
     }
 
-    res.json(order);
+    const decryptedOrder = {
+      ...order,
+      shippingAddress: decryptJson(order.shippingAddress)
+    };
+
+    res.json(decryptedOrder);
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Failed to fetch order' });
@@ -477,14 +487,19 @@ export const trackOrder = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    const shippingAddress: any = order.shippingAddress || {};
+    const shippingAddress: any = decryptJson(order.shippingAddress) || {};
     const orderEmail = order.user?.email || shippingAddress.email;
 
     if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {
       return res.status(403).json({ message: 'Order not found or email does not match' });
     }
 
-    res.json(order);
+    const decryptedOrder = {
+      ...order,
+      shippingAddress
+    };
+
+    res.json(decryptedOrder);
   } catch (error) {
     console.error('Error tracking order:', error);
     res.status(500).json({ message: 'Failed to track order' });
@@ -507,7 +522,7 @@ export const trackCancelOrder = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    const shippingAddress: any = order.shippingAddress || {};
+    const shippingAddress: any = decryptJson(order.shippingAddress) || {};
     const orderEmail = order.user?.email || shippingAddress.email;
 
     if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {

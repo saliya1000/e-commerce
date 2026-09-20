@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Search, ShoppingCart, LogOut, Loader2 } from 'lucide-react';
+import { Search, ShoppingCart, LogOut, Loader2, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import axios from 'axios';
@@ -26,6 +26,7 @@ const Navbar: React.FC = () => {
   const searchRef = useRef<HTMLDivElement>(null);
 
   const [showCartPreview, setShowCartPreview] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const cartItemsCount = cart?.items.reduce((acc, item) => acc + item.quantity, 0) || 0;
   const cartTotal = cart?.items.reduce((acc, item) => acc + (Number(item.product.price) * item.quantity), 0) || 0;
@@ -95,9 +96,20 @@ const Navbar: React.FC = () => {
 
   return (
     <nav className="navbar glass" style={{ position: 'sticky', top: 0, zIndex: 100 }}>
-      <Link to="/" className="nav-brand hover-lift" style={{ textDecoration: 'none' }}>HappyPets</Link>
+      <div className="nav-header">
+        <Link to="/" className="nav-brand hover-lift" style={{ textDecoration: 'none' }}>HappyPets</Link>
+        <button 
+          className="hide-desktop" 
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
+          style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', padding: '0.5rem' }}
+          aria-label="Toggle Menu"
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
       
-      <form onSubmit={handleSearch} style={{ display: 'flex', flex: 1, maxWidth: '500px', margin: '0 2rem' }}>
+      <div className={`nav-menu ${mobileMenuOpen ? 'open' : ''}`} style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between' }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', flex: 1, maxWidth: '500px', margin: '0 2rem' }}>
         <div ref={searchRef} style={{ position: 'relative', width: '100%' }}>
           <input 
             type="text" 
@@ -174,9 +186,9 @@ const Navbar: React.FC = () => {
           style={{ position: 'relative' }} 
           onMouseEnter={() => setShowCartPreview(true)}
           onMouseLeave={() => setShowCartPreview(false)}
-          onClick={() => setShowCartPreview(!showCartPreview)}
         >
           <button 
+            onClick={() => navigate('/cart')}
             aria-label="View Cart" 
             style={{ color: 'var(--text-main)', display: 'flex', alignItems: 'center', background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
           >
@@ -196,12 +208,12 @@ const Navbar: React.FC = () => {
 
           {/* Cart Preview Dropdown */}
           {showCartPreview && (
-            <div className="glass fade-in" style={{
-              position: 'absolute', top: '100%', right: '-10px', width: '300px', marginTop: '1rem',
-              borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem'
-            }}>
-              {cartItemsCount === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 0 }}>Your cart is empty.</p>
+            <div style={{ position: 'absolute', top: '100%', right: '-10px', paddingTop: '1rem', zIndex: 50 }}>
+              <div className="glass fade-in" style={{
+                width: '300px', borderRadius: '16px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem'
+              }}>
+                {cartItemsCount === 0 ? (
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: 0 }}>Your cart is empty.</p>
               ) : (
                 <>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '200px', overflowY: 'auto' }}>
@@ -239,6 +251,7 @@ const Navbar: React.FC = () => {
                   </div>
                 </>
               )}
+              </div>
             </div>
           )}
         </div>
@@ -270,6 +283,7 @@ const Navbar: React.FC = () => {
             <Link to={`/register${redirectParam}`} className="btn btn-primary hover-lift" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', width: 'auto' }}>Register</Link>
           </div>
         )}
+      </div>
       </div>
     </nav>
   );

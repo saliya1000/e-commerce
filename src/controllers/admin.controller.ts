@@ -1,15 +1,46 @@
 import { Request, Response, NextFunction } from 'express';
+import { User, Product, Order, OrderItem } from '@prisma/client';
+import puppeteer from 'puppeteer';
 import prisma from '../prisma';
 import { parse } from 'csv-parse/sync';
 
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const users = await prisma.user.findMany({
-      select: {
-        id: true, email: true, firstName: true, lastName: true, role: true, twoFactorEnabled: true, createdAt: true
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const searchStr = String(search).trim();
+    
+    const query: any = {
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, twoFactorEnabled: true, createdAt: true },
+      where: {},
+      orderBy: { createdAt: 'desc' }
+    };
+
+    if (searchStr) {
+      query.where.OR = [
+        { email: { contains: searchStr, mode: 'insensitive' } },
+        { firstName: { contains: searchStr, mode: 'insensitive' } },
+        { lastName: { contains: searchStr, mode: 'insensitive' } }
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    query.skip = skip;
+    query.take = Number(limit);
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany(query),
+      prisma.user.count({ where: query.where })
+    ]);
+
+    res.json({
+      data: users,
+      meta: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
       }
     });
-    res.json(users);
   } catch (error) { next(error); }
 };
 
@@ -34,22 +65,64 @@ export const updateUserRole = async (req: Request, res: Response, next: NextFunc
   } catch (error) { next(error); }
 };
 
+export const promoteToAdmin = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const updated = await prisma.user.update({
+      where: { email },
+      data: { role: 'admin' },
+      select: { id: true, email: true, role: true }
+    });
+    res.json({ message: 'User promoted to admin', user: updated });
+  } catch (error) { next(error); }
+};
+
 export const getAllOrders = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const orders = await prisma.order.findMany({
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const searchStr = String(search).trim();
+
+    const query: any = {
       include: {
-        user: {
-          select: { email: true, firstName: true, lastName: true }
-        },
-        items: {
-          include: { product: true }
-        },
+        user: { select: { email: true, firstName: true, lastName: true } },
+        items: { include: { product: true } },
         payments: true,
         refunds: true
       },
+      where: {},
       orderBy: { createdAt: 'desc' }
+    };
+
+    if (searchStr) {
+      query.where.OR = [
+        { id: { contains: searchStr, mode: 'insensitive' } },
+        { user: { email: { contains: searchStr, mode: 'insensitive' } } }
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    query.skip = skip;
+    query.take = Number(limit);
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany(query),
+      prisma.order.count({ where: query.where })
+    ]);
+
+    res.json({
+      data: orders,
+      meta: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
     });
-    res.json(orders);
   } catch (error) { next(error); }
 };
 
@@ -125,6 +198,77 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
         limit: Number(limit),
         totalPages: Math.ceil(total / Number(limit))
       }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getAdminReports = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // 1. Total Revenue & Order Count
+    // Only count orders that are not Cancelled or Failed
+    const revenueStats = await prisma.order.aggregate({
+      where: {
+        status: {
+          notIn: ['Cancelled', 'Payment Failed']
+        }
+      },
+      _sum: { totalAmount: true },
+      _count: true
+    });
+
+    // 2. Best-Selling Products (Top 5)
+    // Group OrderItem by productId and sum the quantity
+    const topItems = await prisma.orderItem.groupBy({
+      by: ['productId'],
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: 'desc' } },
+      take: 5
+    });
+
+    // Fetch product details for these top items
+    const topProducts = await Promise.all(
+      topItems.map(async (item) => {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, name: true, price: true, stockQuantity: true }
+        });
+        return {
+          ...product,
+          totalSold: item._sum.quantity
+        };
+      })
+    );
+
+    // 3. Low Stock Alerts
+    const lowStockProducts = await prisma.product.findMany({
+      where: { stockQuantity: { lt: 5 } },
+      select: { id: true, name: true, stockQuantity: true },
+      orderBy: { stockQuantity: 'asc' }
+    });
+
+    // 4. Order Status Breakdown
+    const statusBreakdownRaw = await prisma.order.groupBy({
+      by: ['status'],
+      _count: true
+    });
+
+    const statusBreakdown = statusBreakdownRaw.map(item => ({
+      status: item.status,
+      count: item._count
+    }));
+
+    // 5. Total Users Count
+    const totalUsers = await prisma.user.count();
+
+    res.json({
+      revenue: revenueStats._sum.totalAmount || 0,
+      totalOrders: revenueStats._count || 0,
+      totalUsers,
+      topProducts,
+      lowStockProducts,
+      statusBreakdown
     });
   } catch (error) {
     next(error);
@@ -220,8 +364,41 @@ export const createRefund = async (req: Request, res: Response, next: NextFuncti
 
 export const getRefunds = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const refunds = await prisma.refund.findMany({ include: { order: true } });
-    res.json(refunds);
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const searchStr = String(search).trim();
+    
+    const query: any = {
+      include: { order: true },
+      where: {},
+      orderBy: { createdAt: 'desc' }
+    };
+
+    if (searchStr) {
+      query.where.OR = [
+        { orderId: { contains: searchStr, mode: 'insensitive' } },
+        { reason: { contains: searchStr, mode: 'insensitive' } },
+        { status: { contains: searchStr, mode: 'insensitive' } }
+      ];
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    query.skip = skip;
+    query.take = Number(limit);
+
+    const [refunds, total] = await Promise.all([
+      prisma.refund.findMany(query),
+      prisma.refund.count({ where: query.where })
+    ]);
+
+    res.json({
+      data: refunds,
+      meta: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) { next(error); }
 };
 
@@ -337,4 +514,152 @@ export const deleteFaq = async (req: Request, res: Response, next: NextFunction)
     await prisma.faq.delete({ where: { id } });
     res.json({ message: 'FAQ deleted successfully' });
   } catch (error) { next(error); }
+};
+
+export const downloadPdfReport = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { startDate, endDate, reportType } = req.query;
+
+    if (!startDate || !endDate || !reportType) {
+      return res.status(400).json({ error: 'Missing startDate, endDate, or reportType parameters' });
+    }
+
+    const start = new Date(startDate as string);
+    const end = new Date(endDate as string);
+    // Include end of the day for the end date
+    end.setHours(23, 59, 59, 999);
+
+    let htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+            h1 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { padding: 10px; border: 1px solid #e5e7eb; text-align: left; }
+            th { background-color: #f3f4f6; }
+            .total { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: right; }
+          </style>
+        </head>
+        <body>
+    `;
+
+    if (reportType === 'sales' || reportType === 'cost') {
+      const orders = await prisma.order.findMany({
+        where: {
+          createdAt: { gte: start, lte: end },
+          status: { notIn: ['Cancelled', 'Payment Failed'] }
+        },
+        include: { items: { include: { product: true } } },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      let totalRevenue = 0;
+      let totalCost = 0; // Simulated cost
+
+      let rows = '';
+      orders.forEach(order => {
+        totalRevenue += Number(order.totalAmount);
+        
+        order.items.forEach(item => {
+          const itemRevenue = Number(item.price) * item.quantity;
+          const itemCost = itemRevenue * 0.6; // 60% cost simulation
+          totalCost += itemCost;
+
+          if (reportType === 'sales') {
+            rows += `
+              <tr>
+                <td>${order.id.slice(0,8)}</td>
+                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
+                <td>${item.product?.name || 'Unknown'}</td>
+                <td>${item.quantity}</td>
+                <td>$${itemRevenue.toFixed(2)}</td>
+              </tr>
+            `;
+          } else if (reportType === 'cost') {
+            rows += `
+              <tr>
+                <td>${item.product?.name || 'Unknown'}</td>
+                <td>$${itemRevenue.toFixed(2)}</td>
+                <td>$${itemCost.toFixed(2)}</td>
+                <td>$${(itemRevenue - itemCost).toFixed(2)}</td>
+              </tr>
+            `;
+          }
+        });
+      });
+
+      if (reportType === 'sales') {
+        htmlContent += `
+          <h1>Sales Report</h1>
+          <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+          <table>
+            <thead><tr><th>Order ID</th><th>Date</th><th>Product</th><th>Qty</th><th>Revenue</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="5">No sales found in this period.</td></tr>'}</tbody>
+          </table>
+          <div class="total">Total Revenue: $${totalRevenue.toFixed(2)}</div>
+        `;
+      } else {
+        htmlContent += `
+          <h1>Cost & Profit Report</h1>
+          <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+          <p><em>* Costs are simulated at 60% of retail price for demonstration.</em></p>
+          <table>
+            <thead><tr><th>Product</th><th>Revenue</th><th>Est. Cost</th><th>Profit</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="4">No data found in this period.</td></tr>'}</tbody>
+          </table>
+          <div class="total">Total Profit: $${(totalRevenue - totalCost).toFixed(2)}</div>
+        `;
+      }
+    } else if (reportType === 'inventory') {
+      const products = await prisma.product.findMany({
+        where: {
+          updatedAt: { gte: start, lte: end } // Show products updated in range
+        },
+        orderBy: { stockQuantity: 'asc' }
+      });
+
+      let rows = '';
+      products.forEach(p => {
+        rows += `
+          <tr>
+            <td>${p.id.slice(0,8)}</td>
+            <td>${p.name}</td>
+            <td>$${Number(p.price).toFixed(2)}</td>
+            <td style="color: ${p.stockQuantity < 5 ? 'red' : 'black'}"><strong>${p.stockQuantity}</strong></td>
+          </tr>
+        `;
+      });
+
+      htmlContent += `
+        <h1>Inventory Report (Updated within range)</h1>
+        <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock Quantity</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="4">No inventory updates found in this period.</td></tr>'}</tbody>
+        </table>
+      `;
+    }
+
+    htmlContent += `
+        </body>
+      </html>
+    `;
+
+    // Generate PDF using Puppeteer
+    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'load' });
+    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' } });
+    await browser.close();
+
+    // Send PDF response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${reportType}_report_${startDate}_to_${endDate}.pdf"`);
+    res.send(Buffer.from(pdfBuffer));
+
+  } catch (error) {
+    console.error('PDF Generation Error:', error);
+    next(error);
+  }
 };

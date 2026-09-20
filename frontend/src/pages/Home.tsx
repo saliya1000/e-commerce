@@ -36,7 +36,7 @@ const Home: React.FC = () => {
         padding: '4rem 1rem',
         overflow: 'hidden'
       }}>
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}>
+        <div className="container flex-col-mobile" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2rem' }}>
           <div style={{ flex: 1, maxWidth: '600px' }}>
             <h1 className="font-extrabold text-main" style={{ fontSize: '3.5rem', lineHeight: 1.1, marginBottom: '1.5rem' }}>
               Spoil Your <span className="text-primary">Best Friend</span> Today! <br />
@@ -91,7 +91,7 @@ const Home: React.FC = () => {
 
       {/* 5. Featured / Trending Products */}
       <section className="container py-16">
-        <div className="flex justify-between items-center mb-12">
+        <div className="flex flex-col-mobile justify-between items-center mb-12" style={{ gap: '1rem' }}>
           <h2 className="font-extrabold" style={{ fontSize: '2rem' }}>Trending Pet Supplies</h2>
           <Link to="/products" className="text-primary font-bold" style={{ textDecoration: 'none' }}>View All →</Link>
         </div>

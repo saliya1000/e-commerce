@@ -1,11 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../prisma';
 import Joi from 'joi';
+import { processProductImage } from '../utils/imageProcessor';
 
 export const createCategorySchema = Joi.object({
   name: Joi.string().required(),
   description: Joi.string().allow(null, '').optional(),
   parentId: Joi.string().uuid().allow(null, '').optional()
+});
+
+export const productImageSchema = Joi.object({
+  url: Joi.string().uri().required(),
+  thumbnailUrl: Joi.string().uri().allow(null, '').optional(),
+  mediumUrl: Joi.string().uri().allow(null, '').optional(),
+  isPrimary: Joi.boolean().default(false)
 });
 
 export const createProductSchema = Joi.object({
@@ -27,10 +35,7 @@ export const createProductSchema = Joi.object({
     name: Joi.string().required(),
     value: Joi.string().required()
   })).optional(),
-  images: Joi.array().items(Joi.object({
-    url: Joi.string().uri().required(),
-    isPrimary: Joi.boolean().optional()
-  })).optional()
+  images: Joi.array().items(productImageSchema).optional()
 });
 
 export const createCategory = async (req: Request, res: Response, next: NextFunction) => {
@@ -190,9 +195,11 @@ export const uploadImage = async (req: Request, res: Response, next: NextFunctio
     
     // Construct public URL
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
     
-    res.status(201).json({ url: imageUrl });
+    // Process images
+    const processed = await processProductImage(req.file.path, req.file.filename, baseUrl);
+    
+    res.status(201).json(processed);
   } catch (error) {
     next(error);
   }

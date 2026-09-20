@@ -13,13 +13,14 @@ interface ProductCardProps {
     stockQuantity: number;
     rating?: number | string;
     reviewCount?: number;
-    images?: { url: string; isPrimary: boolean }[];
+    images?: { url: string; mediumUrl?: string; thumbnailUrl?: string; isPrimary: boolean }[];
   };
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
-  const primaryImage = product.images?.find(img => img.isPrimary)?.url || null;
+  const primaryImageObj = product.images?.find(img => img.isPrimary) || product.images?.[0];
+  const primaryImage = primaryImageObj ? (primaryImageObj.mediumUrl || primaryImageObj.url) : null;
 
   return (
     <div className="product-card glass-panel" style={{ padding: '0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', transition: 'transform 0.2s' }}>

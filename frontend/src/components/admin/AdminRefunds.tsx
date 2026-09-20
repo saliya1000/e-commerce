@@ -1,19 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { AdminSearch } from './AdminSearch';
+import { AdminPagination } from './AdminPagination';
 
 export const AdminRefunds: React.FC = () => {
   const [refunds, setRefunds] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
 
   useEffect(() => {
     fetchRefunds();
-  }, []);
+  }, [page, debouncedSearch]);
 
   const fetchRefunds = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/admin/refunds');
-      setRefunds(res.data);
+      const res = await api.get('/admin/refunds', {
+        params: { page, limit: 10, search: debouncedSearch }
+      });
+      setRefunds(res.data.data);
+      setTotalPages(res.data.meta.totalPages);
     } catch (err) {
       console.error(err);
     } finally {
@@ -23,7 +40,10 @@ export const AdminRefunds: React.FC = () => {
 
   return (
     <div className="glass-panel" style={{ padding: '2rem' }}>
-      <h3 className="font-bold mb-6" style={{ fontSize: '1.5rem' }}>Refunds</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h3 className="font-bold" style={{ fontSize: '1.5rem', margin: 0 }}>Refunds</h3>
+        <AdminSearch search={search} setSearch={setSearch} placeholder="Search refunds by order ID, status..." />
+      </div>
       {loading ? <p>Loading...</p> : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -59,6 +79,9 @@ export const AdminRefunds: React.FC = () => {
             ))}
           </tbody>
         </table>
+      )}
+      {!loading && refunds.length > 0 && (
+        <AdminPagination page={page} totalPages={totalPages} setPage={setPage} />
       )}
     </div>
   );
