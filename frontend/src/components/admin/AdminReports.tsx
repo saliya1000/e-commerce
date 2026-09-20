@@ -143,8 +143,6 @@ export const AdminReports: React.FC = () => {
           </table>
         </div>
       </div>
-
-      </div>
     </div>
   );
 };
