@@ -11,12 +11,13 @@ import { AdminOrders } from '../components/admin/AdminOrders';
 import { AdminRefunds } from '../components/admin/AdminRefunds';
 import { AdminSearch } from '../components/admin/AdminSearch';
 import { AdminPagination } from '../components/admin/AdminPagination';
+import { AdminOverview } from '../components/admin/AdminOverview';
 import { AdminReports } from '../components/admin/AdminReports';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('reports');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [users, setUsers] = useState<any[]>([]);
   const [userPage, setUserPage] = useState(1);
   const [userTotalPages, setUserTotalPages] = useState(1);
@@ -120,10 +121,17 @@ const AdminDashboard: React.FC = () => {
         <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', padding: '0 1rem' }}>Admin Panel</h2>
         
         <button 
+          onClick={() => setActiveTab('dashboard')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'var(--primary)' : 'transparent', color: activeTab === 'dashboard' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <BarChart size={18} /> Dashboard Overview
+        </button>
+
+        <button 
           onClick={() => setActiveTab('reports')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'reports' ? 'var(--primary)' : 'transparent', color: activeTab === 'reports' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
         >
-          <BarChart size={18} /> Dashboard Overview
+          <BarChart size={18} /> Reports & Exports
         </button>
 
         <button 
@@ -227,6 +235,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
         
+        {activeTab === 'dashboard' && <AdminOverview />}
         {activeTab === 'categories' && <AdminCategories />}
         {activeTab === 'products' && <AdminProducts />}
         {activeTab === 'orders' && <AdminOrders />}
