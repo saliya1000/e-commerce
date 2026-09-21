@@ -3,6 +3,7 @@ import { User, Product, Order, OrderItem } from '@prisma/client';
 import puppeteer from 'puppeteer';
 import prisma from '../prisma';
 import { parse } from 'csv-parse/sync';
+import { publishRefundStatus } from '../utils/amqp';
 
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -84,7 +85,7 @@ export const promoteToAdmin = async (req: Request, res: Response, next: NextFunc
 
 export const getAllOrders = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    const { page = 1, limit = 10, search = '', paymentStatus, status } = req.query;
     const searchStr = String(search).trim();
 
     const query: any = {
@@ -97,6 +98,14 @@ export const getAllOrders = async (req: Request, res: Response, next: NextFuncti
       where: {},
       orderBy: { createdAt: 'desc' }
     };
+
+    if (paymentStatus) {
+      query.where.paymentStatus = paymentStatus;
+    }
+
+    if (status) {
+      query.where.status = status;
+    }
 
     if (searchStr) {
       query.where.OR = [
@@ -129,10 +138,11 @@ export const getAllOrders = async (req: Request, res: Response, next: NextFuncti
 export const updateOrderStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { orderId } = req.params as { orderId: string };
-    const { status, shippingMethod } = req.body;
+    const { status, shippingMethod, paymentStatus } = req.body;
     const data: any = {};
     if (status) data.status = status;
     if (shippingMethod) data.shippingMethod = shippingMethod;
+    if (paymentStatus) data.paymentStatus = paymentStatus;
 
     const order = await prisma.order.update({
       where: { id: orderId },
@@ -211,7 +221,7 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
     const revenueStats = await prisma.order.aggregate({
       where: {
         status: {
-          notIn: ['Cancelled', 'Payment Failed']
+          notIn: ['CANCELLED']
         }
       },
       _sum: { totalAmount: true },
@@ -266,7 +276,7 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
 
     const totalOrdersCount = await prisma.order.count();
     const cancelledOrdersCount = await prisma.order.count({
-      where: { status: { in: ['Cancelled', 'Payment Failed'] } }
+      where: { status: 'CANCELLED' }
     });
     const refundRate = totalOrdersCount > 0 ? (cancelledOrdersCount / totalOrdersCount) * 100 : 0;
 
@@ -287,7 +297,7 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
     const recentOrders = await prisma.order.findMany({
       where: {
         createdAt: { gte: thirtyDaysAgo },
-        status: { notIn: ['Cancelled', 'Payment Failed'] }
+        status: { notIn: ['CANCELLED'] }
       },
       select: { createdAt: true, totalAmount: true, items: { select: { price: true, cost: true, quantity: true } } }
     });
@@ -423,11 +433,28 @@ export const deleteCategory = async (req: Request, res: Response, next: NextFunc
 // Refunds
 export const createRefund = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { orderId, amount, reason } = req.body;
-    const refund = await prisma.refund.create({
-      data: { orderId, amount, reason, status: 'completed' }
+    const { orderId } = req.params as { orderId: string };
+    
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { payments: true }
     });
-    res.status(201).json(refund);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: 'CANCELLED' }
+    });
+
+    const payment = order.payments.find((p: any) => p.status === 'Succeeded');
+    const transactionId = payment?.transactionId || undefined;
+    
+    await publishRefundStatus(orderId, transactionId);
+
+    res.status(200).json({ success: true, message: 'Refund initiated' });
   } catch (error) { next(error); }
 };
 
@@ -565,6 +592,19 @@ export const createFaq = async (req: Request, res: Response, next: NextFunction)
   } catch (error) { next(error); }
 };
 
+
+
+export const getPendingOrderCount = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const count = await prisma.order.count({
+      where: { status: 'PENDING' }
+    });
+    res.json({ count });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateFaq = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
@@ -617,7 +657,7 @@ export const downloadPdfReport = async (req: Request, res: Response, next: NextF
       const orders = await prisma.order.findMany({
         where: {
           createdAt: { gte: start, lte: end },
-          status: { notIn: ['Cancelled', 'Payment Failed'] }
+          status: { notIn: ['CANCELLED'] }
         },
         include: { items: { include: { product: true } } },
         orderBy: { createdAt: 'desc' }
@@ -728,6 +768,93 @@ export const downloadPdfReport = async (req: Request, res: Response, next: NextF
 
   } catch (error) {
     console.error('PDF Generation Error:', error);
+    next(error);
+  }
+};
+
+// --- COUPON MANAGEMENT ---
+
+export const getCoupons = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const coupons = await prisma.coupon.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(coupons);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createCoupon = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { code, discountType, discountValue, minOrderAmount, maxDiscount, startDate, endDate, usageLimit, isActive } = req.body;
+    
+    // Validate uniqueness
+    const existing = await prisma.coupon.findUnique({ where: { code } });
+    if (existing) {
+      return res.status(400).json({ message: 'Coupon code already exists' });
+    }
+
+    const coupon = await prisma.coupon.create({
+      data: {
+        code: code.toUpperCase(),
+        discountType,
+        discountValue,
+        minOrderAmount,
+        maxDiscount,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        usageLimit,
+        isActive
+      }
+    });
+
+    res.status(201).json(coupon);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateCoupon = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const { code, discountType, discountValue, minOrderAmount, maxDiscount, startDate, endDate, usageLimit, isActive } = req.body;
+
+    // Check code uniqueness if changed
+    if (code) {
+      const existing = await prisma.coupon.findUnique({ where: { code: code.toUpperCase() } });
+      if (existing && existing.id !== id) {
+        return res.status(400).json({ message: 'Coupon code already exists' });
+      }
+    }
+
+    const coupon = await prisma.coupon.update({
+      where: { id: id as string },
+      data: {
+        code: code ? code.toUpperCase() : undefined,
+        discountType,
+        discountValue,
+        minOrderAmount,
+        maxDiscount,
+        startDate: startDate !== undefined ? (startDate ? new Date(startDate) : null) : undefined,
+        endDate: endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined,
+        usageLimit,
+        isActive
+      }
+    });
+
+    res.json(coupon);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCoupon = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    await prisma.coupon.delete({ where: { id: id as string } });
+    res.json({ message: 'Coupon deleted successfully' });
+  } catch (error) {
     next(error);
   }
 };

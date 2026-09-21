@@ -34,9 +34,9 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         const updateResult = await prisma.order.updateMany({
           where: { 
             id: orderId, 
-            status: { in: ['Pending Payment', 'Payment Failed'] }
+            paymentStatus: { in: ['UNPAID', 'FAILED'] }
           },
-          data: { status: 'Payment Successful' }
+          data: { paymentStatus: 'PAID' }
         });
 
         if (updateResult.count === 0) {
@@ -60,9 +60,9 @@ export const stripeWebhook = async (req: Request, res: Response) => {
         const updateResult = await prisma.order.updateMany({
           where: { 
             id: orderId, 
-            status: 'Pending Payment' 
+            paymentStatus: 'UNPAID' 
           },
-          data: { status: 'Payment Failed' }
+          data: { paymentStatus: 'FAILED' }
         });
         
         if (updateResult.count > 0) {

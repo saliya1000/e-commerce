@@ -10,13 +10,13 @@ export function startCronJobs() {
 
       const result = await prisma.order.updateMany({
         where: {
-          status: 'Pending Payment',
+          paymentStatus: 'UNPAID',
           createdAt: {
             lt: twentyFourHoursAgo,
           },
         },
         data: {
-          status: 'Cancelled',
+          status: 'CANCELLED',
           cancelReason: 'Abandoned checkout',
         },
       });

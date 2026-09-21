@@ -8,6 +8,21 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PaymentStatus {
+  UNPAID
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
 model User {
   id                 String         @id @default(uuid())
   email              String         @unique
@@ -161,12 +176,16 @@ model Order {
   userId          String?
   user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   guestId         String?
-  status          String      @default("Pending Payment") // Pending Payment, Payment Successful, Payment Failed, Cancelled, Processing, Shipped, Delivered
+  status          OrderStatus @default(PENDING)
+  paymentStatus   PaymentStatus @default(UNPAID)
   cancelReason    String?
   totalAmount     Decimal     @db.Decimal(10, 2)
   shippingAddress String      // Encrypted JSON string
   shippingMethod  String      @default("standard")
   shippingCost    Decimal     @default(0.00) @db.Decimal(10, 2)
+  couponId        String?
+  coupon          Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  discountAmount  Decimal     @default(0.00) @db.Decimal(10, 2)
   items           OrderItem[]
   payments        Payment[]
   refunds         Refund[]
@@ -268,4 +287,22 @@ model AuditLog {
   details   String?  // JSON stringified details
   ipAddress String?
   createdAt DateTime @default(now())
+}
+
+model Coupon {
+  id              String    @id @default(uuid())
+  code            String    @unique
+  discountType    String    // 'percentage', 'fixed'
+  discountValue   Decimal   @db.Decimal(10, 2)
+  minOrderAmount  Decimal?  @db.Decimal(10, 2)
+  maxDiscount     Decimal?  @db.Decimal(10, 2)
+  startDate       DateTime?
+  endDate         DateTime?
+  usageLimit      Int?
+  usageCount      Int       @default(0)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  orders          Order[]
 }

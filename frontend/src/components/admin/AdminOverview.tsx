@@ -144,9 +144,9 @@ export const AdminOverview: React.FC = () => {
                       <stop offset="95%" stopColor={activeChartMetric === 'orders' ? '#3b82f6' : activeChartMetric === 'profit' ? '#8b5cf6' : '#10b981'} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dy={10} />
-                  <YAxis tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dx={-10} tickFormatter={(value) => activeChartMetric === 'orders' ? value : `$${value > 1000 ? (value/1000).toFixed(1) + 'k' : value}`} />
-                  <RechartsTooltip formatter={(value) => activeChartMetric === 'orders' ? [value, 'Orders'] : [`$${Number(value).toFixed(2)}`, activeChartMetric.charAt(0).toUpperCase() + activeChartMetric.slice(1)]} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--text-muted)' }} tickLine={false} axisLine={false} tickFormatter={(value) => activeChartMetric === 'revenue' || activeChartMetric === 'profit' ? `$${value}` : value} />
+                  <RechartsTooltip />
                   <Area type="monotone" dataKey={activeChartMetric} stroke={activeChartMetric === 'orders' ? '#3b82f6' : activeChartMetric === 'profit' ? '#8b5cf6' : '#10b981'} strokeWidth={2} fillOpacity={1} fill="url(#colorMetric)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -233,7 +233,7 @@ export const AdminOverview: React.FC = () => {
                   <td style={{ padding: '1rem 0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                       <div style={{ width: '32px', height: '32px', background: 'var(--bg-muted)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                         {product.images?.[0] ? <img src={product.images[0].thumbnailUrl || product.images[0].url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={16} style={{ color: 'var(--text-muted)' }} />}
+                         {product.images?.[0]?.url || product.images?.[0]?.thumbnailUrl ? <img src={product.images[0].thumbnailUrl || product.images[0].url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={16} style={{ color: 'var(--text-muted)' }} />}
                       </div>
                       <div>
                         <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{product.name}</p>

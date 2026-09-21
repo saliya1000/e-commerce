@@ -27,8 +27,9 @@ export const addReview = async (req: Request, res: Response, next: NextFunction)
         productId,
         order: {
           userId,
+          paymentStatus: 'PAID',
           status: {
-            notIn: ['Pending Payment', 'Payment Failed', 'Cancelled']
+            notIn: ['CANCELLED']
           }
         }
       }

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { SEO } from '../components/SEO';
-import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Download } from 'lucide-react';
+import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Download, Tag } from 'lucide-react';
 
 import { AdminCategories } from '../components/admin/AdminCategories';
 import { AdminProducts } from '../components/admin/AdminProducts';
@@ -13,12 +13,14 @@ import { AdminSearch } from '../components/admin/AdminSearch';
 import { AdminPagination } from '../components/admin/AdminPagination';
 import { AdminOverview } from '../components/admin/AdminOverview';
 import { AdminReports } from '../components/admin/AdminReports';
+import { AdminPromotions } from '../components/admin/AdminPromotions';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [users, setUsers] = useState<any[]>([]);
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
   const [userPage, setUserPage] = useState(1);
   const [userTotalPages, setUserTotalPages] = useState(1);
   const [userSearch, setUserSearch] = useState('');
@@ -33,6 +35,12 @@ const AdminDashboard: React.FC = () => {
       navigate('/');
     }
   }, [isAuthenticated, user, navigate]);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      api.get('/admin/orders/pending-count').then(res => setPendingOrdersCount(res.data.count)).catch(console.error);
+    }
+  }, [user]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -164,15 +172,33 @@ const AdminDashboard: React.FC = () => {
           <UploadCloud size={18} /> Bulk Upload
         </button>
 
+        <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: '#888', marginTop: '1.5rem', marginBottom: '0.5rem', paddingLeft: '1rem' }}>Marketing</h3>
+        <button 
+          onClick={() => setActiveTab('promotions')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'promotions' ? 'var(--primary)' : 'transparent', color: activeTab === 'promotions' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <Tag size={18} /> Promotions
+        </button>
+
         {/* Group 3: Sales & Orders */}
         <div style={{ marginTop: '1rem', padding: '0 1rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales & Orders</span>
         </div>
         <button 
           onClick={() => setActiveTab('orders')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'orders' ? 'var(--primary)' : 'transparent', color: activeTab === 'orders' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1rem', background: activeTab === 'orders' ? 'var(--primary)' : 'transparent', color: activeTab === 'orders' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
         >
-          <ShoppingCart size={18} /> Orders
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <ShoppingCart size={18} /> Orders
+          </div>
+          {pendingOrdersCount > 0 && (
+            <span style={{ 
+              background: '#ef4444', color: 'white', borderRadius: '9999px', 
+              padding: '0.1rem 0.5rem', fontSize: '0.75rem', fontWeight: 'bold' 
+            }}>
+              {pendingOrdersCount}
+            </span>
+          )}
         </button>
 
         <button 
@@ -258,6 +284,7 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'orders' && <AdminOrders />}
         {activeTab === 'refunds' && <AdminRefunds />}
         {activeTab === 'reports' && <AdminReports />}
+        {activeTab === 'promotions' && <AdminPromotions />}
 
         {activeTab === 'bulk-upload' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>

@@ -100,6 +100,12 @@ const Checkout: React.FC = () => {
 
   const [saveAddress, setSaveAddress] = useState(false);
 
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
+  const [discountAmount, setDiscountAmount] = useState(0);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const shippingAddressSchema = z.object({
@@ -136,13 +142,38 @@ const Checkout: React.FC = () => {
 
   const [shippingMethod, setShippingMethod] = useState('standard');
   const shippingCost = shippingMethod === 'express' ? 15.00 : (shippingMethod === 'overnight' ? 25.00 : 5.00);
-  const finalTotal = totalAmount + shippingCost;
+  const finalTotal = Math.max(0, totalAmount - discountAmount) + shippingCost;
 
   useEffect(() => {
     if (!cart || cart.items.length === 0) {
       navigate('/cart');
     }
   }, [cart, navigate]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode) return;
+    setIsApplyingCoupon(true);
+    setCouponError(null);
+    try {
+      const res = await api.post('/orders/validate-coupon', { code: couponCode, cartTotal: totalAmount });
+      setDiscountAmount(res.data.discountAmount);
+      setAppliedCoupon(res.data.coupon.code);
+      setCouponCode('');
+    } catch (err: any) {
+      setCouponError(err.response?.data?.message || 'Invalid coupon code');
+      setDiscountAmount(0);
+      setAppliedCoupon('');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setDiscountAmount(0);
+    setAppliedCoupon('');
+    setCouponCode('');
+    setCouponError(null);
+  };
 
   const handleContinueToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -191,7 +222,8 @@ const Checkout: React.FC = () => {
         shippingAddress,
         shippingMethod,
         saveAddress,
-        existingOrderId: pendingOrderId
+        existingOrderId: pendingOrderId,
+        couponCode: appliedCoupon || undefined
       });
       setClientSecret(res.data.clientSecret);
       setOrderId(res.data.orderId);
@@ -455,11 +487,42 @@ const Checkout: React.FC = () => {
               ))}
             </div>
 
+            <div style={{ marginBottom: '1.5rem', background: '#FDFBF7', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>Promo Code</h3>
+              {appliedCoupon ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#dcfce7', color: '#166534', padding: '0.75rem', borderRadius: '8px' }}>
+                  <span style={{ fontWeight: 600 }}>{appliedCoupon} applied!</span>
+                  <button type="button" onClick={handleRemoveCoupon} disabled={clientSecret !== ''} style={{ background: 'none', border: 'none', color: '#991b1b', cursor: clientSecret ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Remove</button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input 
+                    type="text" 
+                    value={couponCode} 
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())} 
+                    placeholder="Enter code" 
+                    disabled={clientSecret !== ''}
+                    style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: clientSecret ? '#f9fafb' : 'white' }}
+                  />
+                  <button type="button" onClick={handleApplyCoupon} disabled={!couponCode || isApplyingCoupon || clientSecret !== ''} className="btn" style={{ padding: '0 1rem' }}>
+                    {isApplyingCoupon ? '...' : 'Apply'}
+                  </button>
+                </div>
+              )}
+              {couponError && <div style={{ color: 'red', fontSize: '0.85rem', marginTop: '0.5rem' }}>{couponError}</div>}
+            </div>
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: '#FDFBF7', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                 <span>Subtotal</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>${totalAmount.toFixed(2)}</span>
               </div>
+              {discountAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#166534' }}>
+                  <span>Discount ({appliedCoupon})</span>
+                  <span style={{ fontWeight: 600 }}>-${discountAmount.toFixed(2)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
                 <span>Shipping ({shippingMethod})</span>
                 <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>${shippingCost.toFixed(2)}</span>

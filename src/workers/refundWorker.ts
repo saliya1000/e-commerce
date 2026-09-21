@@ -54,7 +54,17 @@ export const startRefundWorker = async () => {
         // 1. Update Order Status
         await prisma.order.update({
           where: { id: orderId },
-          data: { status: 'Refunded' }
+          data: { paymentStatus: 'REFUNDED' }
+        });
+        
+        // Create a Refund record so it shows up in the admin dashboard
+        await prisma.refund.create({
+          data: {
+            orderId: orderId,
+            amount: order.totalAmount,
+            reason: 'Order Cancelled',
+            status: 'completed'
+          }
         });
         
         // 2. Increment Stock (restore inventory)

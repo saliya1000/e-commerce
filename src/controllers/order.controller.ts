@@ -24,7 +24,8 @@ export const checkoutSchema = Joi.object({
   }).required(),
   shippingMethod: Joi.string().valid('standard', 'express', 'overnight').optional(),
   existingOrderId: Joi.string().uuid().optional(),
-  saveAddress: Joi.boolean().optional()
+  saveAddress: Joi.boolean().optional(),
+  couponCode: Joi.string().allow(null, '').optional()
 });
 
 export const trackOrderSchema = Joi.object({
@@ -59,10 +60,60 @@ export const validateAddress = async (req: Request, res: Response) => {
   }
 };
 
+const checkCouponValid = async (code: string, cartTotal: number) => {
+  const coupon = await prisma.coupon.findUnique({ where: { code: code.toUpperCase() } });
+  if (!coupon) return { isValid: false, message: 'Invalid coupon code' };
+  if (!coupon.isActive) return { isValid: false, message: 'Coupon is not active' };
+  
+  const now = new Date();
+  if (coupon.startDate && now < coupon.startDate) return { isValid: false, message: 'Coupon is not yet active' };
+  if (coupon.endDate && now > coupon.endDate) return { isValid: false, message: 'Coupon has expired' };
+  
+  if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) return { isValid: false, message: 'Coupon usage limit reached' };
+  
+  if (coupon.minOrderAmount && cartTotal < Number(coupon.minOrderAmount)) {
+    return { isValid: false, message: `Minimum order amount is $${coupon.minOrderAmount}` };
+  }
+
+  let discountAmount = 0;
+  if (coupon.discountType === 'percentage') {
+    discountAmount = (cartTotal * Number(coupon.discountValue)) / 100;
+    if (coupon.maxDiscount && discountAmount > Number(coupon.maxDiscount)) {
+      discountAmount = Number(coupon.maxDiscount);
+    }
+  } else {
+    discountAmount = Number(coupon.discountValue);
+  }
+  
+  if (discountAmount > cartTotal) {
+    discountAmount = cartTotal;
+  }
+
+  return { isValid: true, coupon, discountAmount };
+};
+
+export const validateCouponRoute = async (req: Request, res: Response) => {
+  try {
+    const { code, cartTotal } = req.body;
+    if (!code) {
+      res.status(400).json({ message: 'Coupon code is required' });
+      return;
+    }
+    const result = await checkCouponValid(code, cartTotal);
+    if (!result.isValid) {
+      res.status(400).json({ message: result.message });
+      return;
+    }
+    res.json({ coupon: result.coupon, discountAmount: result.discountAmount });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Failed to validate coupon', error: error.message });
+  }
+};
+
 export const checkout = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { guestId, shippingAddress, shippingMethod, existingOrderId } = req.body;
+    const { guestId, shippingAddress, shippingMethod, existingOrderId, couponCode } = req.body;
     
     console.log(`[CHECKOUT] userId: ${userId}, guestId: ${guestId}`);
 
@@ -111,13 +162,29 @@ export const checkout = async (req: Request, res: Response) => {
     }
 
     // Calculate subtotal
-    const totalAmount = calculateTotal(cart.items, shippingCost);
+    let totalAmount = calculateTotal(cart.items, shippingCost);
+
+    let cartTotalWithoutShipping = totalAmount - shippingCost;
+    let finalDiscountAmount = 0;
+    let appliedCouponId = null;
+
+    if (couponCode) {
+      const couponValidation = await checkCouponValid(couponCode, cartTotalWithoutShipping);
+      if (!couponValidation.isValid) {
+        res.status(400).json({ message: couponValidation.message });
+        return;
+      }
+      finalDiscountAmount = couponValidation.discountAmount || 0;
+      appliedCouponId = couponValidation.coupon?.id || null;
+      
+      totalAmount = Math.max(0, totalAmount - finalDiscountAmount);
+    }
 
     // Create or Update Order
     let order;
     if (existingOrderId) {
       const existing = await prisma.order.findUnique({ where: { id: existingOrderId } });
-      if (existing && existing.status === 'Pending Payment') {
+      if (existing && existing.paymentStatus === 'UNPAID') {
         // We must delete the old items first to recreate them
         await prisma.orderItem.deleteMany({ where: { orderId: existingOrderId } });
         
@@ -128,6 +195,8 @@ export const checkout = async (req: Request, res: Response) => {
             shippingAddress: encryptJson(shippingAddress),
             shippingMethod: shippingMethod || 'standard',
             shippingCost,
+            couponId: appliedCouponId,
+            discountAmount: finalDiscountAmount,
             items: {
               create: cart.items.map(item => ({
                 productId: item.productId,
@@ -146,11 +215,13 @@ export const checkout = async (req: Request, res: Response) => {
         data: {
           userId,
           guestId: userId ? null : guestId,
-          status: 'Pending Payment',
+          paymentStatus: 'UNPAID',
           totalAmount,
           shippingAddress: encryptJson(shippingAddress),
           shippingMethod: shippingMethod || 'standard',
           shippingCost,
+          couponId: appliedCouponId,
+          discountAmount: finalDiscountAmount,
           items: {
             create: cart.items.map(item => ({
               productId: item.productId,
@@ -353,7 +424,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
       return;
     }
     
-    if (order.status === 'Pending Payment') {
+    if (order.paymentStatus === 'UNPAID') {
       const paymentIntent = await stripe.paymentIntents.retrieve(order.payments[0]?.transactionId || '');
       if (paymentIntent && paymentIntent.status === 'succeeded') {
         // Update payment and publish to RabbitMQ to clear cart and send email
@@ -435,19 +506,19 @@ export const cancelOrder = async (req: Request, res: Response) => {
       return;
     }
 
-    if (order.status === 'Pending Payment') {
+    if (order.paymentStatus === 'UNPAID') {
       await prisma.order.update({
         where: { id: id as string },
-        data: { status: 'Cancelled' }
+        data: { status: 'CANCELLED' }
       });
       res.json({ success: true, message: 'Order cancelled' });
       return;
     }
 
-    if (order.status === 'Payment Successful') {
+    if (order.paymentStatus === 'PAID') {
       await prisma.order.update({
         where: { id: id as string },
-        data: { status: 'Refund Processing' }
+        data: { status: 'CANCELLED' }
       });
       
       const payment = order.payments.find(p => p.status === 'Succeeded');
@@ -531,18 +602,18 @@ export const trackCancelOrder = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Order not found or email does not match' });
     }
 
-    if (order.status === 'Pending Payment') {
+    if (order.paymentStatus === 'UNPAID') {
       await prisma.order.update({
         where: { id: orderId },
-        data: { status: 'Cancelled' }
+        data: { status: 'CANCELLED' }
       });
       return res.json({ success: true, message: 'Order cancelled' });
     }
 
-    if (order.status === 'Payment Successful') {
+    if (order.paymentStatus === 'PAID') {
       await prisma.order.update({
         where: { id: orderId },
-        data: { status: 'Refund Processing' }
+        data: { status: 'CANCELLED' }
       });
       
       const payment = order.payments.find(p => p.status === 'Succeeded');

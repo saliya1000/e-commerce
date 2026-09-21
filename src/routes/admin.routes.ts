@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { 
   getUsers, updateUserRole, 
-  getAllOrders, updateOrderStatus, 
+  getAllOrders, updateOrderStatus, getPendingOrderCount,
   deleteReview, getReviews, updateReviewStatus,
   bulkUploadProducts, updateProduct, deleteProduct, quickUpdateProduct,
   updateCategory, deleteCategory,
   createRefund, getRefunds,
   getDeliveryOptions, createDeliveryOption, updateDeliveryOption, deleteDeliveryOption,
   getFaqs, createFaq, updateFaq, deleteFaq,
-  getAdminProducts, promoteToAdmin, getAdminReports, downloadPdfReport
+  getAdminProducts, promoteToAdmin, getAdminReports, downloadPdfReport,
+  getCoupons, createCoupon, updateCoupon, deleteCoupon
 } from '../controllers/admin.controller';
 import { requireAuth, requireRole } from '../middlewares/auth';
 import { auditLogger } from '../middlewares/auditLogger';
@@ -26,6 +27,7 @@ router.post('/promote', promoteToAdmin);
 
 // Orders & Refunds
 router.get('/orders', getAllOrders);
+router.get('/orders/pending-count', getPendingOrderCount);
 router.put('/orders/:orderId/status', updateOrderStatus);
 router.post('/orders/:orderId/refund', createRefund);
 router.get('/refunds', getRefunds);
@@ -61,5 +63,11 @@ router.delete('/faqs/:id', deleteFaq);
 // Reports
 router.get('/reports/download', downloadPdfReport);
 router.get('/reports', getAdminReports);
+
+// Coupons
+router.get('/coupons', getCoupons);
+router.post('/coupons', createCoupon);
+router.put('/coupons/:id', updateCoupon);
+router.delete('/coupons/:id', deleteCoupon);
 
 export default router;

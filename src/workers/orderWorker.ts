@@ -38,8 +38,8 @@ export const startOrderWorker = async () => {
         const customerEmail = order.user?.email || shippingAddress.email;
         
         if (event === 'PAYMENT_SUCCESS') {
-          if (order.status !== 'Pending Payment' && order.status !== 'Payment Failed') {
-            console.log(`[ORDER WORKER] Order ${orderId} already processed (status: ${order.status}), skipping PAYMENT_SUCCESS`);
+          if (order.paymentStatus !== 'UNPAID' && order.paymentStatus !== 'FAILED') {
+            console.log(`[ORDER WORKER] Order ${orderId} already processed (paymentStatus: ${order.paymentStatus}), skipping PAYMENT_SUCCESS`);
             channel.ack(msg);
             return;
           }
@@ -47,7 +47,7 @@ export const startOrderWorker = async () => {
           // 1. Update Order Status
           await prisma.order.update({
             where: { id: orderId },
-            data: { status: 'Payment Successful' }
+            data: { paymentStatus: 'PAID' }
           });
           
           // 2. Decrement Stock with Concurrency Check
@@ -79,7 +79,8 @@ export const startOrderWorker = async () => {
             await prisma.order.update({
               where: { id: orderId },
               data: { 
-                status: 'Refund Processing',
+                status: 'CANCELLED',
+                paymentStatus: 'REFUNDED',
                 cancelReason: 'Insufficient stock for one or more items.'
               }
             });
@@ -116,7 +117,7 @@ export const startOrderWorker = async () => {
           // Update Order Status
           await prisma.order.update({
             where: { id: orderId },
-            data: { status: 'Payment Failed' }
+            data: { paymentStatus: 'FAILED' }
           });
           
           // Send Failure Email
