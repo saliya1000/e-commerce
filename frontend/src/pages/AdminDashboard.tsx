@@ -120,6 +120,10 @@ const AdminDashboard: React.FC = () => {
       <div className="glass-panel" style={{ width: '250px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', padding: '0 1rem' }}>Admin Panel</h2>
         
+        {/* Group 1: Analytics & Reports */}
+        <div style={{ marginTop: '0.5rem', padding: '0 1rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Analytics & Reports</span>
+        </div>
         <button 
           onClick={() => setActiveTab('dashboard')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'dashboard' ? 'var(--primary)' : 'transparent', color: activeTab === 'dashboard' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
@@ -134,13 +138,10 @@ const AdminDashboard: React.FC = () => {
           <BarChart size={18} /> Reports & Exports
         </button>
 
-        <button 
-          onClick={() => setActiveTab('users')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'users' ? 'var(--primary)' : 'transparent', color: activeTab === 'users' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
-        >
-          <Users size={18} /> Manage Users
-        </button>
-
+        {/* Group 2: Catalog Management */}
+        <div style={{ marginTop: '1rem', padding: '0 1rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catalog Management</span>
+        </div>
         <button 
           onClick={() => setActiveTab('categories')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'categories' ? 'var(--primary)' : 'transparent', color: activeTab === 'categories' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
@@ -156,6 +157,17 @@ const AdminDashboard: React.FC = () => {
         </button>
 
         <button 
+          onClick={() => setActiveTab('bulk-upload')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'bulk-upload' ? 'var(--primary)' : 'transparent', color: activeTab === 'bulk-upload' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <UploadCloud size={18} /> Bulk Upload
+        </button>
+
+        {/* Group 3: Sales & Orders */}
+        <div style={{ marginTop: '1rem', padding: '0 1rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales & Orders</span>
+        </div>
+        <button 
           onClick={() => setActiveTab('orders')}
           style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'orders' ? 'var(--primary)' : 'transparent', color: activeTab === 'orders' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
         >
@@ -169,11 +181,15 @@ const AdminDashboard: React.FC = () => {
           <RefreshCcw size={18} /> Refunds
         </button>
 
+        {/* Group 4: Administration */}
+        <div style={{ marginTop: '1rem', padding: '0 1rem' }}>
+          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Administration</span>
+        </div>
         <button 
-          onClick={() => setActiveTab('bulk-upload')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'bulk-upload' ? 'var(--primary)' : 'transparent', color: activeTab === 'bulk-upload' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+          onClick={() => setActiveTab('users')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'users' ? 'var(--primary)' : 'transparent', color: activeTab === 'users' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
         >
-          <UploadCloud size={18} /> Bulk Upload
+          <Users size={18} /> Manage Users
         </button>
 
         <button 
