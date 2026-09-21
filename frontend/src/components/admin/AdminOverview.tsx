@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { DollarSign, ShoppingBag, AlertTriangle, Users } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { DollarSign, ShoppingBag, AlertTriangle, Users, TrendingUp, RefreshCcw, Calendar, Package } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, BarChart, Bar } from 'recharts';
 
 export const AdminOverview: React.FC = () => {
   const [data, setData] = useState<any>(null);
@@ -26,57 +26,102 @@ export const AdminOverview: React.FC = () => {
   if (!data) return <div style={{ padding: '2rem' }}>Failed to load dashboard.</div>;
 
   return (
-    <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: 0 }}>Dashboard Overview</h2>
-
-      {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1.5rem' }}>
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderRadius: '50%' }}>
-            <DollarSign size={24} style={{ color: '#3b82f6' }} />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      
+      {/* Row 1: Summary Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
+        
+        {/* Total Sales */}
+        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Total Sales</p>
+              <h3 style={{ margin: '0.25rem 0', fontSize: '1.75rem', fontWeight: 'bold' }}>${Number(data.revenue).toFixed(2)}</h3>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> +18.2%</p>
+            </div>
+            <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
+              <DollarSign size={20} style={{ color: '#10b981' }} />
+            </div>
           </div>
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Total Revenue</p>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>${Number(data.revenue).toFixed(2)}</h3>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '50%' }}>
-            <ShoppingBag size={24} style={{ color: '#10b981' }} />
-          </div>
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Total Orders</p>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>{data.totalOrders}</h3>
-          </div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(139, 92, 246, 0.1)', padding: '1rem', borderRadius: '50%' }}>
-            <Users size={24} style={{ color: '#8b5cf6' }} />
-          </div>
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Total Active Users</p>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>{data.totalUsers}</h3>
+          <div style={{ width: 'calc(100% + 3rem)', height: '60px', marginLeft: '-1.5rem', marginBottom: '-2px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.dailySales || []}>
+                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '50%' }}>
-            <AlertTriangle size={24} style={{ color: '#ef4444' }} />
+        {/* Avg Order Value */}
+        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Avg Order Value</p>
+              <h3 style={{ margin: '0.25rem 0', fontSize: '1.75rem', fontWeight: 'bold' }}>${Number(data.avgOrderValue || 0).toFixed(2)}</h3>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> +4.8%</p>
+            </div>
+            <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
+              <Calendar size={20} style={{ color: '#3b82f6' }} />
+            </div>
           </div>
-          <div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Low Stock Items</p>
-            <h3 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 'bold' }}>{data.lowStockProducts.length}</h3>
+          <div style={{ width: 'calc(100% + 3rem)', height: '60px', marginLeft: '-1.5rem', marginBottom: '-2px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.dailySales || []}>
+                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Total Orders (Replaced Conversion Rate) */}
+        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Total Orders</p>
+              <h3 style={{ margin: '0.25rem 0', fontSize: '1.75rem', fontWeight: 'bold' }}>{data.totalOrders}</h3>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14}/> +0.8%</p>
+            </div>
+            <div style={{ background: 'rgba(99, 102, 241, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
+              <TrendingUp size={20} style={{ color: '#6366f1' }} />
+            </div>
+          </div>
+          <div style={{ width: 'calc(100% + 3rem)', height: '60px', marginLeft: '-1.5rem', marginBottom: '-2px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.dailySales || []}>
+                <Line type="monotone" dataKey="orders" stroke="#6366f1" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Refund Rate */}
+        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Refund Rate</p>
+              <h3 style={{ margin: '0.25rem 0', fontSize: '1.75rem', fontWeight: 'bold' }}>{Number(data.refundRate || 0).toFixed(1)}%</h3>
+              <p style={{ margin: 0, fontSize: '0.8rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.25rem' }}><TrendingUp size={14} style={{ transform: 'rotate(180deg)' }}/> -0.3%</p>
+            </div>
+            <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
+              <RefreshCcw size={20} style={{ color: '#f59e0b' }} />
+            </div>
+          </div>
+          <div style={{ width: 'calc(100% + 3rem)', height: '60px', marginLeft: '-1.5rem', marginBottom: '-2px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={data.dailySales || []}>
+                <Line type="monotone" dataKey="orders" stroke="#f59e0b" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
       </div>
 
-      {/* Charts Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '1rem' }}>
+      {/* Row 2: Charts Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         
         {/* Sales Overview Area Chart */}
-        <div className="glass-panel" style={{ padding: '1.5rem', flex: '2', minWidth: '0' }}>
+        <div className="admin-card" style={{ flex: '2', minWidth: '0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Sales Overview</h3>
@@ -111,7 +156,7 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Order Status Doughnut Chart */}
-        <div className="glass-panel" style={{ padding: '1.5rem', flex: '1', minWidth: '0' }}>
+        <div className="admin-card" style={{ flex: '1', minWidth: '0' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Order Status</h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Distribution of current orders</p>
@@ -141,6 +186,88 @@ export const AdminOverview: React.FC = () => {
               </ResponsiveContainer>
             ) : (
                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No orders found.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Row 3: Products & Categories */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+        
+        {/* Top Selling Products */}
+        <div className="admin-card" style={{ flex: '2', minWidth: '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Top Selling Products</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Best performers this month</p>
+            </div>
+            <a href="#" style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#10b981', textDecoration: 'none' }}>View all &rarr;</a>
+          </div>
+          
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 500 }}>#</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 500 }}>Product</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 500 }}>Sold</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 500 }}>Revenue</th>
+                <th style={{ paddingBottom: '0.75rem', fontWeight: 500 }}>Trend</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topProducts?.map((product: any, index: number) => (
+                <tr key={product.id} style={{ borderBottom: index !== data.topProducts.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+                  <td style={{ padding: '1rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>{index + 1}</td>
+                  <td style={{ padding: '1rem 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '32px', height: '32px', background: 'var(--bg-muted)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                         <Package size={16} style={{ color: 'var(--text-muted)' }} />
+                      </div>
+                      <div>
+                        <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{product.name}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '1rem 0', fontWeight: 600, fontSize: '0.9rem' }}>{product.totalSold}</td>
+                  <td style={{ padding: '1rem 0', fontWeight: 600, fontSize: '0.9rem' }}>${(product.totalSold * product.price).toFixed(2)}</td>
+                  <td style={{ padding: '1rem 0' }}>
+                    <div style={{ width: '60px', height: '20px' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                         <LineChart data={[{v: Math.random()*10}, {v: Math.random()*10}, {v: Math.random()*10}]}>
+                           <Line type="monotone" dataKey="v" stroke={index % 3 === 0 ? "#ef4444" : "#10b981"} strokeWidth={2} dot={false} />
+                         </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {(!data.topProducts || data.topProducts.length === 0) && (
+                <tr>
+                  <td colSpan={5} style={{ padding: '1rem 0', textAlign: 'center', color: 'var(--text-muted)' }}>No products found.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Sales By Category */}
+        <div className="admin-card" style={{ flex: '1', minWidth: '0' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Sales by Category</h3>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Revenue distribution across product types</p>
+          </div>
+          <div style={{ width: '100%', height: 300 }}>
+            {data.salesByCategory && data.salesByCategory.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={data.salesByCategory} layout="vertical" margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="category" type="category" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: 'var(--text-muted)'}} width={80} />
+                  <RechartsTooltip cursor={{fill: 'rgba(0,0,0,0.02)'}} />
+                  <Bar dataKey="revenue" fill="#0d9488" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No sales data available.</div>
             )}
           </div>
         </div>

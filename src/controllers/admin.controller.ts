@@ -259,8 +259,27 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
       count: item._count
     }));
 
-    // 5. Total Users Count
+    // 5. Total Users Count & New Metrics (AOV, Refund Rate, Sales by Category)
     const totalUsers = await prisma.user.count();
+
+    const avgOrderValue = revenueStats._count > 0 ? Number(revenueStats._sum.totalAmount) / revenueStats._count : 0;
+
+    const totalOrdersCount = await prisma.order.count();
+    const cancelledOrdersCount = await prisma.order.count({
+      where: { status: { in: ['Cancelled', 'Payment Failed'] } }
+    });
+    const refundRate = totalOrdersCount > 0 ? (cancelledOrdersCount / totalOrdersCount) * 100 : 0;
+
+    const categorySalesRaw = await prisma.orderItem.findMany({
+      include: { product: { include: { category: true } } }
+    });
+    const categorySalesMap: Record<string, number> = {};
+    categorySalesRaw.forEach(item => {
+      const catName = item.product.category.name;
+      if (!categorySalesMap[catName]) categorySalesMap[catName] = 0;
+      categorySalesMap[catName] += Number(item.price) * item.quantity;
+    });
+    const salesByCategory = Object.entries(categorySalesMap).map(([category, revenue]) => ({ category, revenue })).sort((a, b) => b.revenue - a.revenue);
 
     // 6. Daily Sales for Area Chart (last 30 days)
     const thirtyDaysAgo = new Date();
@@ -290,6 +309,9 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
     res.json({
       revenue: revenueStats._sum.totalAmount || 0,
       totalOrders: revenueStats._count || 0,
+      avgOrderValue,
+      refundRate,
+      salesByCategory,
       totalUsers,
       topProducts,
       lowStockProducts,
