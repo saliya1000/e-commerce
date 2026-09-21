@@ -231,8 +231,8 @@ export const AdminOverview: React.FC = () => {
                   <td style={{ padding: '1rem 0', fontSize: '0.9rem', color: 'var(--text-muted)' }}>{index + 1}</td>
                   <td style={{ padding: '1rem 0' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ width: '32px', height: '32px', background: 'var(--bg-muted)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                         <Package size={16} style={{ color: 'var(--text-muted)' }} />
+                      <div style={{ width: '32px', height: '32px', background: 'var(--bg-muted)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                         {product.images?.[0] ? <img src={product.images[0].thumbnailUrl || product.images[0].url} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={16} style={{ color: 'var(--text-muted)' }} />}
                       </div>
                       <div>
                         <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>{product.name}</p>

@@ -232,7 +232,7 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
       topItems.map(async (item) => {
         const product = await prisma.product.findUnique({
           where: { id: item.productId },
-          select: { id: true, name: true, price: true, stockQuantity: true }
+          select: { id: true, name: true, price: true, stockQuantity: true, images: { select: { url: true, thumbnailUrl: true } } }
         });
         return {
           ...product,
