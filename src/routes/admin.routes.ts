@@ -3,7 +3,7 @@ import {
   getUsers, updateUserRole, 
   getAllOrders, updateOrderStatus, 
   deleteReview, getReviews, updateReviewStatus,
-  bulkUploadProducts, updateProduct, deleteProduct,
+  bulkUploadProducts, updateProduct, deleteProduct, quickUpdateProduct,
   updateCategory, deleteCategory,
   createRefund, getRefunds,
   getDeliveryOptions, createDeliveryOption, updateDeliveryOption, deleteDeliveryOption,
@@ -38,6 +38,7 @@ router.delete('/reviews/:reviewId', deleteReview);
 // Products
 router.get('/products', getAdminProducts);
 router.post('/products/bulk', uploadCsv.single('file'), bulkUploadProducts);
+router.patch('/products/:id/quick', quickUpdateProduct);
 router.put('/products/:id', updateProduct);
 router.delete('/products/:id', deleteProduct);
 

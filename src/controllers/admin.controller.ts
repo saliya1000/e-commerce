@@ -335,8 +335,10 @@ export const bulkUploadProducts = async (req: Request, res: Response, next: Next
       const records = parse(csvString, { columns: true, skip_empty_lines: true });
       products = records.map((r: any) => ({
         name: r.name,
+        sku: r.sku || null,
         description: r.description,
         price: parseFloat(r.price),
+        cost: r.cost ? parseFloat(r.cost) : 0,
         stockQuantity: parseInt(r.stockQuantity, 10),
         categoryId: r.categoryId,
         brand: r.brand
@@ -378,6 +380,22 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
     const { id } = req.params as { id: string };
     await prisma.product.delete({ where: { id } });
     res.json({ message: 'Product deleted successfully' });
+  } catch (error) { next(error); }
+};
+
+export const quickUpdateProduct = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { sku, price, stockQuantity } = req.body;
+    const updated = await prisma.product.update({
+      where: { id },
+      data: {
+        sku: sku || null,
+        price: price !== undefined ? Number(price) : undefined,
+        stockQuantity: stockQuantity !== undefined ? Number(stockQuantity) : undefined,
+      }
+    });
+    res.json(updated);
   } catch (error) { next(error); }
 };
 

@@ -10,6 +10,7 @@ export const AdminProducts: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isQuickEdit, setIsQuickEdit] = useState(false);
   
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -25,7 +26,7 @@ export const AdminProducts: React.FC = () => {
   }, [search]);
 
   const initialFormState = {
-    name: '', description: '', price: 0, cost: 0, stockQuantity: 0, categoryId: '', brand: '',
+    name: '', sku: '', description: '', price: 0, cost: 0, stockQuantity: 0, categoryId: '', brand: '',
     weightMetric: '', lengthMetric: '', widthMetric: '', heightMetric: '',
     attributes: [] as { name: string, value: string }[],
     images: [] as { url: string, thumbnailUrl?: string, mediumUrl?: string, isPrimary: boolean }[]
@@ -98,6 +99,7 @@ export const AdminProducts: React.FC = () => {
     setEditingId(prod.id);
     setFormData({
       name: prod.name,
+      sku: prod.sku || '',
       description: prod.description,
       price: prod.price,
       cost: prod.cost || 0,
@@ -121,6 +123,17 @@ export const AdminProducts: React.FC = () => {
       fetchProducts();
     } catch (err) {
       alert('Failed to delete product');
+    }
+  };
+
+  const handleQuickUpdate = async (id: string, field: string, value: string | number) => {
+    try {
+      await api.patch(`/admin/products/${id}/quick`, { [field]: value });
+      // Update local state to reflect change instantly
+      setProducts(products.map(p => p.id === id ? { ...p, [field]: value } : p));
+    } catch (err) {
+      alert('Failed to update product');
+      fetchProducts(); // revert on failure
     }
   };
 
@@ -164,7 +177,10 @@ export const AdminProducts: React.FC = () => {
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <AdminSearch search={search} setSearch={setSearch} placeholder="Search products..." />
-          <button className="btn btn-primary" onClick={() => { setIsFormOpen(!isFormOpen); setEditingId(null); setFormData(initialFormState); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', width: 'auto' }}>
+          <button className="btn btn-outline" onClick={() => setIsQuickEdit(!isQuickEdit)} style={{ whiteSpace: 'nowrap', width: 'auto' }}>
+            {isQuickEdit ? 'Exit Quick Edit' : 'Quick Stock Update'}
+          </button>
+          <button className="btn btn-primary" onClick={() => { setIsFormOpen(!isFormOpen); setEditingId(null); setFormData(initialFormState); setIsQuickEdit(false); }} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap', width: 'auto' }}>
             <Plus size={18} /> Add Product
           </button>
         </div>
@@ -181,6 +197,10 @@ export const AdminProducts: React.FC = () => {
               <div>
                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Product Name *</label>
                 <input type="text" placeholder="e.g. Feline Finery Salmon Treats" className="form-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>SKU</label>
+                <input type="text" placeholder="e.g. SKU-123" className="form-input" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Brand</label>
@@ -285,35 +305,61 @@ export const AdminProducts: React.FC = () => {
         <div className="table-responsive">
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '600px' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-              <th style={{ padding: '1rem' }}>Product</th>
-              <th style={{ padding: '1rem' }}>Price</th>
-              <th style={{ padding: '1rem' }}>Cost</th>
-              <th style={{ padding: '1rem' }}>Stock</th>
-              <th style={{ padding: '1rem' }}>Actions</th>
-            </tr>
+            {isQuickEdit ? (
+              <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+                <th style={{ padding: '1rem' }}>Product</th>
+                <th style={{ padding: '1rem' }}>SKU</th>
+                <th style={{ padding: '1rem' }}>Price ($)</th>
+                <th style={{ padding: '1rem' }}>Stock</th>
+              </tr>
+            ) : (
+              <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+                <th style={{ padding: '1rem' }}>Product</th>
+                <th style={{ padding: '1rem' }}>Price</th>
+                <th style={{ padding: '1rem' }}>Cost</th>
+                <th style={{ padding: '1rem' }}>Stock</th>
+                <th style={{ padding: '1rem' }}>Actions</th>
+              </tr>
+            )}
           </thead>
           <tbody>
             {products.map(prod => (
               <tr key={prod.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    {prod.images?.[0] && <img src={prod.images[0].thumbnailUrl || prod.images[0].url} alt={prod.name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />}
+                    {!isQuickEdit && prod.images?.[0] && <img src={prod.images[0].thumbnailUrl || prod.images[0].url} alt={prod.name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />}
                     <div>
                       <strong>{prod.name}</strong>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{prod.brand}</div>
+                      {!isQuickEdit && <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{prod.brand}</div>}
                     </div>
                   </div>
                 </td>
-                <td style={{ padding: '1rem' }}>${Number(prod.price).toFixed(2)}</td>
-                <td style={{ padding: '1rem' }}>${Number(prod.cost || 0).toFixed(2)}</td>
-                <td style={{ padding: '1rem' }}>{prod.stockQuantity}</td>
-                <td style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button onClick={() => handleEdit(prod)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}><Edit2 size={20} /></button>
-                    <button onClick={() => handleDelete(prod.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'red' }}><Trash2 size={20} /></button>
-                  </div>
-                </td>
+                
+                {isQuickEdit ? (
+                  <>
+                    <td style={{ padding: '1rem' }}>
+                      <input type="text" className="form-input" defaultValue={prod.sku || ''} style={{ width: '120px', padding: '0.25rem 0.5rem' }} onBlur={(e) => handleQuickUpdate(prod.id, 'sku', e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <input type="number" step="0.01" className="form-input" defaultValue={prod.price} style={{ width: '100px', padding: '0.25rem 0.5rem' }} onBlur={(e) => handleQuickUpdate(prod.id, 'price', e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+                    </td>
+                    <td style={{ padding: '1rem' }}>
+                      <input type="number" className="form-input" defaultValue={prod.stockQuantity} style={{ width: '100px', padding: '0.25rem 0.5rem' }} onBlur={(e) => handleQuickUpdate(prod.id, 'stockQuantity', e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td style={{ padding: '1rem' }}>${Number(prod.price).toFixed(2)}</td>
+                    <td style={{ padding: '1rem' }}>${Number(prod.cost || 0).toFixed(2)}</td>
+                    <td style={{ padding: '1rem' }}>{prod.stockQuantity}</td>
+                    <td style={{ padding: '1rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button onClick={() => handleEdit(prod)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}><Edit2 size={20} /></button>
+                        <button onClick={() => handleDelete(prod.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'red' }}><Trash2 size={20} /></button>
+                      </div>
+                    </td>
+                  </>
+                )}
               </tr>
             ))}
           </tbody>

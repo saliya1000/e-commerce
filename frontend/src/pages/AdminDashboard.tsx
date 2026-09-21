@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { SEO } from '../components/SEO';
-import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart } from 'lucide-react';
+import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Download } from 'lucide-react';
 
 import { AdminCategories } from '../components/admin/AdminCategories';
 import { AdminProducts } from '../components/admin/AdminProducts';
@@ -261,28 +261,77 @@ const AdminDashboard: React.FC = () => {
 
         {activeTab === 'bulk-upload' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>
-            <h3 className="font-bold mb-6" style={{ fontSize: '1.5rem' }}>Bulk Upload Products</h3>
-            <p className="mb-4">Upload a JSON array of products to add them to the database.</p>
-            <textarea 
-              id="bulk-json"
-              className="form-input mb-4" 
-              rows={10} 
-              placeholder='[{"name": "Dog Toy", "description": "...", "price": 10.99, "stockQuantity": 100, "categoryId": "...", "brand": "PetCo"}]'
-              style={{ fontFamily: 'monospace', width: '100%' }}
-            ></textarea>
-            <button 
-              className="btn btn-primary"
-              onClick={async () => {
-                try {
-                  const val = (document.getElementById('bulk-json') as HTMLTextAreaElement).value;
-                  const data = JSON.parse(val);
-                  const res = await api.post('/admin/products/bulk', { products: data });
-                  alert(res.data.message);
-                } catch (e) {
-                  alert('Invalid JSON or request failed');
-                }
+            <h3 className="font-bold mb-6" style={{ fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <UploadCloud size={24} /> Bulk Upload Products (CSV)
+            </h3>
+            <p className="mb-4 text-muted">Upload a CSV file to add multiple products at once. Make sure to follow the template format.</p>
+            
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem' }}>
+              <button 
+                className="btn btn-outline"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: 'auto' }}
+                onClick={() => {
+                  const headers = 'name,sku,description,price,cost,stockQuantity,categoryId,brand\n';
+                  const sampleRow = 'Example Product,SKU-123,Detailed description here,19.99,10.00,50,replace-with-category-id,Example Brand\n';
+                  const blob = new Blob([headers + sampleRow], { type: 'text/csv' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.setAttribute('hidden', '');
+                  a.setAttribute('href', url);
+                  a.setAttribute('download', 'products_template.csv');
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }}
+              >
+                <Download size={18} /> Download Sample Template
+              </button>
+            </div>
+
+            <div 
+              style={{
+                border: '2px dashed var(--border-color)',
+                borderRadius: '12px',
+                padding: '3rem',
+                textAlign: 'center',
+                background: 'var(--bg-muted)',
+                position: 'relative',
+                cursor: 'pointer'
               }}
-            >Upload JSON</button>
+              className="hover-lift"
+              onClick={() => document.getElementById('csv-upload')?.click()}
+            >
+              <UploadCloud size={48} style={{ color: 'var(--text-muted)', margin: '0 auto 1rem auto' }} />
+              <h4 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>Click or drag a CSV file to upload</h4>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Max file size 5MB</p>
+              
+              <input 
+                id="csv-upload"
+                type="file" 
+                accept=".csv"
+                style={{ position: 'absolute', opacity: 0, top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  
+                  const formData = new FormData();
+                  formData.append('file', file);
+                  
+                  try {
+                    setLoading(true);
+                    const res = await api.post('/admin/products/bulk', formData, {
+                      headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                    alert(res.data.message);
+                    e.target.value = ''; // reset
+                  } catch (err: any) {
+                    alert(err.response?.data?.error || 'Failed to upload CSV');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+              />
+            </div>
           </div>
         )}
 
