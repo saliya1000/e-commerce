@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, ShieldCheck, Users, Award, Truck, Smile } from 'lucide-react';
+import { Heart, ShieldCheck, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const About: React.FC = () => {
