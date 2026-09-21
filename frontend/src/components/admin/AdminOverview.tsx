@@ -181,7 +181,18 @@ export const AdminOverview: React.FC = () => {
                     })}
                   </Pie>
                   <RechartsTooltip />
-                  <Legend iconType="circle" layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '12px' }} />
+                  <Legend 
+                    iconType="circle" 
+                    layout="vertical" 
+                    verticalAlign="middle" 
+                    align="right" 
+                    wrapperStyle={{ fontSize: '12px' }} 
+                    formatter={(value, entry: any) => (
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {value} <span style={{ fontWeight: 'bold', marginLeft: '4px', color: 'var(--text-main)' }}>({entry.payload.count})</span>
+                      </span>
+                    )}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
