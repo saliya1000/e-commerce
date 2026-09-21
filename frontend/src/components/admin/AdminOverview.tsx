@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { DollarSign, ShoppingBag, AlertTriangle, Users } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
 export const AdminOverview: React.FC = () => {
   const [data, setData] = useState<any>(null);
@@ -71,20 +72,79 @@ export const AdminOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Order Status Breakdown */}
-      <div className="glass-panel" style={{ padding: '1.5rem' }}>
-        <h3 style={{ fontSize: '1.25rem', margin: '0 0 1rem 0', fontWeight: 'bold' }}>Order Status Breakdown</h3>
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-          {data.statusBreakdown.map((statusItem: any, index: number) => (
-            <div key={index} style={{ background: 'var(--bg-muted)', padding: '1rem 1.5rem', borderRadius: '8px', minWidth: '150px', flex: '1 1 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>{statusItem.status}</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{statusItem.count}</span>
+      {/* Charts Section */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', marginTop: '1rem' }}>
+        
+        {/* Sales Overview Area Chart */}
+        <div className="glass-panel" style={{ padding: '1.5rem', flex: '2', minWidth: '0' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Sales Overview</h3>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Daily performance for the current month</p>
             </div>
-          ))}
-          {data.statusBreakdown.length === 0 && (
-            <div style={{ width: '100%', textAlign: 'center', color: 'var(--text-muted)', padding: '1rem' }}>No orders found.</div>
-          )}
+            <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-muted)', padding: '0.25rem', borderRadius: '8px' }}>
+              <button style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: 'white', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', cursor: 'pointer' }}>Revenue</button>
+              <button style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>Orders</button>
+              <button style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>Profit</button>
+            </div>
+          </div>
+          <div style={{ width: '100%', height: 300 }}>
+            {data.dailySales && data.dailySales.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data.dailySales} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <RechartsTooltip />
+                  <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No sales data available.</div>
+            )}
+          </div>
         </div>
+
+        {/* Order Status Doughnut Chart */}
+        <div className="glass-panel" style={{ padding: '1.5rem', flex: '1', minWidth: '0' }}>
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Order Status</h3>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Distribution of current orders</p>
+          </div>
+          <div style={{ width: '100%', height: 300, display: 'flex', flexDirection: 'column' }}>
+            {data.statusBreakdown && data.statusBreakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={data.statusBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="count"
+                    nameKey="status"
+                  >
+                    {data.statusBreakdown.map((entry: any, index: number) => {
+                      const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
+                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                    })}
+                  </Pie>
+                  <RechartsTooltip />
+                  <Legend iconType="circle" layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '12px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+               <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No orders found.</div>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );

@@ -262,13 +262,39 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
     // 5. Total Users Count
     const totalUsers = await prisma.user.count();
 
+    // 6. Daily Sales for Area Chart (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentOrders = await prisma.order.findMany({
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+        status: { notIn: ['Cancelled', 'Payment Failed'] }
+      },
+      select: { createdAt: true, totalAmount: true }
+    });
+
+    const salesByDate: Record<string, any> = {};
+    recentOrders.forEach(order => {
+      const dateStr = order.createdAt.toISOString().split('T')[0];
+      if (!salesByDate[dateStr]) {
+        salesByDate[dateStr] = { date: dateStr, revenue: 0, orders: 0, profit: 0 };
+      }
+      salesByDate[dateStr].revenue += Number(order.totalAmount);
+      salesByDate[dateStr].orders += 1;
+      // Assuming 30% profit margin as a mock value since we don't have cost in this schema
+      salesByDate[dateStr].profit += Number(order.totalAmount) * 0.3; 
+    });
+
+    const dailySales = Object.values(salesByDate).sort((a: any, b: any) => a.date.localeCompare(b.date));
+
     res.json({
       revenue: revenueStats._sum.totalAmount || 0,
       totalOrders: revenueStats._count || 0,
       totalUsers,
       topProducts,
       lowStockProducts,
-      statusBreakdown
+      statusBreakdown,
+      dailySales
     });
   } catch (error) {
     next(error);
