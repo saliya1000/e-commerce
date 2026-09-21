@@ -32,7 +32,7 @@ export const AdminOverview: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.5rem' }}>
         
         {/* Total Sales */}
-        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Total Sales</p>
@@ -53,7 +53,7 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Avg Order Value */}
-        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Avg Order Value</p>
@@ -74,7 +74,7 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Total Orders (Replaced Conversion Rate) */}
-        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Total Orders</p>
@@ -95,7 +95,7 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Refund Rate */}
-        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', display: 'flex', flexDirection: 'column', gap: '1rem', padding: '1.5rem 1.5rem 0 1.5rem', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 500 }}>Refund Rate</p>
@@ -121,7 +121,7 @@ export const AdminOverview: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         
         {/* Sales Overview Area Chart */}
-        <div className="admin-card" style={{ flex: '2', minWidth: '0' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', flex: '2', minWidth: '0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Sales Overview</h3>
@@ -156,7 +156,7 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Order Status Doughnut Chart */}
-        <div className="admin-card" style={{ flex: '1', minWidth: '0' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', flex: '1', minWidth: '0' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Order Status</h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Distribution of current orders</p>
@@ -195,7 +195,7 @@ export const AdminOverview: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
         
         {/* Top Selling Products */}
-        <div className="admin-card" style={{ flex: '2', minWidth: '0' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', flex: '2', minWidth: '0' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Top Selling Products</h3>
@@ -251,7 +251,7 @@ export const AdminOverview: React.FC = () => {
         </div>
 
         {/* Sales By Category */}
-        <div className="admin-card" style={{ flex: '1', minWidth: '0' }}>
+        <div className="admin-card" style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', flex: '1', minWidth: '0' }}>
           <div style={{ marginBottom: '1.5rem' }}>
             <h3 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem 0', fontWeight: 'bold' }}>Sales by Category</h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Revenue distribution across product types</p>
