@@ -136,15 +136,15 @@ export const AdminOverview: React.FC = () => {
           <div style={{ width: '100%', height: 300 }}>
             {data.dailySales && data.dailySales.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.dailySales} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <AreaChart data={data.dailySales} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <defs>
                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="date" tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={false} tickLine={false} />
-                  <YAxis tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={false} tickLine={false} tickFormatter={(value) => `$${value/1000}k`} />
+                  <XAxis dataKey="date" tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dy={10} />
+                  <YAxis tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dx={-10} tickFormatter={(value) => `$${value/1000}k`} />
                   <RechartsTooltip />
                   <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
                 </AreaChart>
