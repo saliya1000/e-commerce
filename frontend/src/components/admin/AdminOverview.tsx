@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { DollarSign, ShoppingBag, AlertTriangle, Users, TrendingUp, RefreshCcw, Calendar, Package } from 'lucide-react';
+import { DollarSign, TrendingUp, RefreshCcw, Calendar, Package } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, BarChart, Bar } from 'recharts';
 
 export const AdminOverview: React.FC = () => {
@@ -175,7 +175,7 @@ export const AdminOverview: React.FC = () => {
                     dataKey="count"
                     nameKey="status"
                   >
-                    {data.statusBreakdown.map((entry: any, index: number) => {
+                    {data.statusBreakdown.map((_entry: any, index: number) => {
                       const colors = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
                       return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                     })}
