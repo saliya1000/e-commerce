@@ -289,7 +289,7 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
         createdAt: { gte: thirtyDaysAgo },
         status: { notIn: ['Cancelled', 'Payment Failed'] }
       },
-      select: { createdAt: true, totalAmount: true }
+      select: { createdAt: true, totalAmount: true, items: { select: { price: true, cost: true, quantity: true } } }
     });
 
     const salesByDate: Record<string, any> = {};
@@ -300,8 +300,11 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
       }
       salesByDate[dateStr].revenue += Number(order.totalAmount);
       salesByDate[dateStr].orders += 1;
-      // Assuming 30% profit margin as a mock value since we don't have cost in this schema
-      salesByDate[dateStr].profit += Number(order.totalAmount) * 0.3; 
+      
+      const orderRevenue = order.items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
+      const orderCost = order.items.reduce((sum, item) => sum + (Number(item.cost) * item.quantity), 0);
+      
+      salesByDate[dateStr].profit += (orderRevenue - orderCost); 
     });
 
     const dailySales = Object.values(salesByDate).sort((a: any, b: any) => a.date.localeCompare(b.date));
@@ -361,10 +364,10 @@ export const bulkUploadProducts = async (req: Request, res: Response, next: Next
 export const updateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
-    const { name, description, price, stockQuantity, categoryId, brand } = req.body;
+    const { name, description, price, cost, stockQuantity, categoryId, brand } = req.body;
     const updated = await prisma.product.update({
       where: { id },
-      data: { name, description, price, stockQuantity, categoryId, brand }
+      data: { name, description, price, cost, stockQuantity, categoryId, brand }
     });
     res.json(updated);
   } catch (error) { next(error); }
@@ -611,7 +614,7 @@ export const downloadPdfReport = async (req: Request, res: Response, next: NextF
         
         order.items.forEach(item => {
           const itemRevenue = Number(item.price) * item.quantity;
-          const itemCost = itemRevenue * 0.6; // 60% cost simulation
+          const itemCost = Number(item.cost) * item.quantity; // Exact cost
           totalCost += itemCost;
 
           if (reportType === 'sales') {
@@ -651,9 +654,8 @@ export const downloadPdfReport = async (req: Request, res: Response, next: NextF
         htmlContent += `
           <h1>Cost & Profit Report</h1>
           <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
-          <p><em>* Costs are simulated at 60% of retail price for demonstration.</em></p>
           <table>
-            <thead><tr><th>Product</th><th>Revenue</th><th>Est. Cost</th><th>Profit</th></tr></thead>
+            <thead><tr><th>Product</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead>
             <tbody>${rows || '<tr><td colspan="4">No data found in this period.</td></tr>'}</tbody>
           </table>
           <div class="total">Total Profit: $${(totalRevenue - totalCost).toFixed(2)}</div>

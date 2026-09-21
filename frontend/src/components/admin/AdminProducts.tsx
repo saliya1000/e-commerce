@@ -25,7 +25,7 @@ export const AdminProducts: React.FC = () => {
   }, [search]);
 
   const initialFormState = {
-    name: '', description: '', price: 0, stockQuantity: 0, categoryId: '', brand: '',
+    name: '', description: '', price: 0, cost: 0, stockQuantity: 0, categoryId: '', brand: '',
     weightMetric: '', lengthMetric: '', widthMetric: '', heightMetric: '',
     attributes: [] as { name: string, value: string }[],
     images: [] as { url: string, thumbnailUrl?: string, mediumUrl?: string, isPrimary: boolean }[]
@@ -68,6 +68,7 @@ export const AdminProducts: React.FC = () => {
       const payload = {
         ...formData,
         price: Number(formData.price),
+        cost: Number(formData.cost),
         stockQuantity: Number(formData.stockQuantity),
         weightMetric: formData.weightMetric ? Number(formData.weightMetric) : undefined,
         lengthMetric: formData.lengthMetric ? Number(formData.lengthMetric) : undefined,
@@ -99,6 +100,7 @@ export const AdminProducts: React.FC = () => {
       name: prod.name,
       description: prod.description,
       price: prod.price,
+      cost: prod.cost || 0,
       stockQuantity: prod.stockQuantity,
       categoryId: prod.categoryId,
       brand: prod.brand || '',
@@ -203,10 +205,14 @@ export const AdminProducts: React.FC = () => {
           {/* Pricing & Inventory */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h5 style={{ margin: 0, color: 'var(--text-muted)' }}>Pricing & Inventory</h5>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '1rem' }}>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Price ($) *</label>
                 <input type="number" step="0.01" placeholder="0.00" className="form-input" value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} required />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Cost ($) *</label>
+                <input type="number" step="0.01" placeholder="0.00" className="form-input" value={formData.cost} onChange={e => setFormData({...formData, cost: Number(e.target.value)})} required />
               </div>
               <div>
                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Stock Quantity *</label>
@@ -282,6 +288,7 @@ export const AdminProducts: React.FC = () => {
             <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
               <th style={{ padding: '1rem' }}>Product</th>
               <th style={{ padding: '1rem' }}>Price</th>
+              <th style={{ padding: '1rem' }}>Cost</th>
               <th style={{ padding: '1rem' }}>Stock</th>
               <th style={{ padding: '1rem' }}>Actions</th>
             </tr>
@@ -299,6 +306,7 @@ export const AdminProducts: React.FC = () => {
                   </div>
                 </td>
                 <td style={{ padding: '1rem' }}>${Number(prod.price).toFixed(2)}</td>
+                <td style={{ padding: '1rem' }}>${Number(prod.cost || 0).toFixed(2)}</td>
                 <td style={{ padding: '1rem' }}>{prod.stockQuantity}</td>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>

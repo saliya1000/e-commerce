@@ -132,7 +132,8 @@ export const checkout = async (req: Request, res: Response) => {
               create: cart.items.map(item => ({
                 productId: item.productId,
                 quantity: item.quantity,
-                price: item.product.price
+                price: item.product.price,
+                cost: item.product.cost
               }))
             }
           }
@@ -154,7 +155,8 @@ export const checkout = async (req: Request, res: Response) => {
             create: cart.items.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
-              price: item.product.price
+              price: item.product.price,
+              cost: item.product.cost
             }))
           }
         }

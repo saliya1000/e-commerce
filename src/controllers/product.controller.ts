@@ -64,7 +64,7 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
 export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { 
-      name, description, price, stockQuantity, categoryId, brand, 
+      name, description, price, cost, stockQuantity, categoryId, brand, 
       weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
       lengthImperial, widthImperial, heightImperial,
       attributes, images 
@@ -72,7 +72,7 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
 
     const product = await prisma.product.create({
       data: {
-        name, description, price, stockQuantity, categoryId, brand,
+        name, description, price, cost, stockQuantity, categoryId, brand,
         weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
         lengthImperial, widthImperial, heightImperial,
         attributes: {
