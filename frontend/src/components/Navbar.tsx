@@ -108,8 +108,8 @@ const Navbar: React.FC = () => {
         </button>
       </div>
       
-      <div className={`nav-menu ${mobileMenuOpen ? 'open' : ''}`} style={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'space-between' }}>
-        <form onSubmit={handleSearch} style={{ display: 'flex', flex: 1, maxWidth: '500px', margin: '0 2rem' }}>
+      <div className={`nav-menu ${mobileMenuOpen ? 'open' : ''}`} style={{ display: 'flex', flex: 1, alignItems: 'center' }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', flex: 1, maxWidth: '500px', margin: '0 auto' }}>
         <div ref={searchRef} style={{ position: 'relative', width: '100%' }}>
           <input 
             type="text" 
@@ -179,7 +179,7 @@ const Navbar: React.FC = () => {
         </div>
       </form>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginLeft: 'auto' }}>
         
         {/* Cart Icon & Preview */}
         <div 
