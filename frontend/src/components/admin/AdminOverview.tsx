@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveCo
 export const AdminOverview: React.FC = () => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeChartMetric, setActiveChartMetric] = useState<'revenue' | 'orders' | 'profit'>('revenue');
 
   useEffect(() => {
     fetchOverview();
@@ -128,9 +129,9 @@ export const AdminOverview: React.FC = () => {
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Daily performance for the current month</p>
             </div>
             <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-muted)', padding: '0.25rem', borderRadius: '8px' }}>
-              <button style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: 'white', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', cursor: 'pointer' }}>Revenue</button>
-              <button style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>Orders</button>
-              <button style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>Profit</button>
+              <button onClick={() => setActiveChartMetric('revenue')} style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: activeChartMetric === 'revenue' ? 'white' : 'transparent', color: activeChartMetric === 'revenue' ? 'black' : 'var(--text-muted)', borderRadius: '6px', boxShadow: activeChartMetric === 'revenue' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}>Revenue</button>
+              <button onClick={() => setActiveChartMetric('orders')} style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: activeChartMetric === 'orders' ? 'white' : 'transparent', color: activeChartMetric === 'orders' ? 'black' : 'var(--text-muted)', borderRadius: '6px', boxShadow: activeChartMetric === 'orders' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}>Orders</button>
+              <button onClick={() => setActiveChartMetric('profit')} style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', fontWeight: 'bold', border: 'none', background: activeChartMetric === 'profit' ? 'white' : 'transparent', color: activeChartMetric === 'profit' ? 'black' : 'var(--text-muted)', borderRadius: '6px', boxShadow: activeChartMetric === 'profit' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}>Profit</button>
             </div>
           </div>
           <div style={{ width: '100%', height: 300 }}>
@@ -138,15 +139,15 @@ export const AdminOverview: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data.dailySales} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                   <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={activeChartMetric === 'orders' ? '#3b82f6' : activeChartMetric === 'profit' ? '#8b5cf6' : '#10b981'} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={activeChartMetric === 'orders' ? '#3b82f6' : activeChartMetric === 'profit' ? '#8b5cf6' : '#10b981'} stopOpacity={0}/>
                     </linearGradient>
                   </defs>
                   <XAxis dataKey="date" tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dy={10} />
-                  <YAxis tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dx={-10} tickFormatter={(value) => `$${value/1000}k`} />
-                  <RechartsTooltip />
-                  <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                  <YAxis tick={{fontSize: 12, fill: 'var(--text-muted)'}} axisLine={{ stroke: 'var(--border-color)' }} tickLine={{ stroke: 'var(--border-color)' }} dx={-10} tickFormatter={(value) => activeChartMetric === 'orders' ? value : `$${value > 1000 ? (value/1000).toFixed(1) + 'k' : value}`} />
+                  <RechartsTooltip formatter={(value) => activeChartMetric === 'orders' ? [value, 'Orders'] : [`$${Number(value).toFixed(2)}`, activeChartMetric.charAt(0).toUpperCase() + activeChartMetric.slice(1)]} />
+                  <Area type="monotone" dataKey={activeChartMetric} stroke={activeChartMetric === 'orders' ? '#3b82f6' : activeChartMetric === 'profit' ? '#8b5cf6' : '#10b981'} strokeWidth={2} fillOpacity={1} fill="url(#colorMetric)" />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
