@@ -113,8 +113,9 @@ const AdminDashboard: React.FC = () => {
   if (user?.role !== 'admin') return null;
 
   return (
-    <div className="container py-12" style={{ display: 'flex', gap: '2rem' }}>
-      <SEO title="Admin Dashboard | i-love-shopping" description="Admin management tools" />
+    <div style={{ background: '#f1f5f9', minHeight: '100vh', paddingBottom: '2rem' }}>
+      <div className="container py-12" style={{ display: 'flex', gap: '2rem' }}>
+        <SEO title="Admin Dashboard | i-love-shopping" description="Admin management tools" />
       
       {/* Sidebar */}
       <div className="glass-panel" style={{ width: '250px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -315,6 +316,7 @@ const AdminDashboard: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };
