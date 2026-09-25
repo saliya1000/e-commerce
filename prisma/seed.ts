@@ -1,214 +1,280 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, PaymentStatus, OrderStatus } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Clearing old data...');
+  console.log('Starting seed...');
+
+  // Clear existing data
+  await prisma.reviewVote.deleteMany();
+  await prisma.review.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.refund.deleteMany();
+  await prisma.orderItem.deleteMany();
+  await prisma.order.deleteMany();
+  await prisma.cartItem.deleteMany();
+  await prisma.cart.deleteMany();
   await prisma.productImage.deleteMany();
+  await prisma.productAttribute.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();
-  await prisma.revokedAccessToken.deleteMany();
+  await prisma.coupon.deleteMany();
+  await prisma.faq.deleteMany();
+  await prisma.address.deleteMany();
   await prisma.user.deleteMany();
 
-  console.log('Creating Admin & Customer Users...');
-  const passwordHash = await bcrypt.hash('Password123!', 10);
-
+  // 1. Users (1 admin, 20 customers)
+  const passwordHash = await bcrypt.hash('password123', 10);
+  
   await prisma.user.create({
     data: {
-      email: 'admin@happypets.com',
+      email: 'admin@example.com',
       passwordHash,
+      firstName: 'Admin',
+      lastName: 'User',
       role: 'admin',
-      twoFactorEnabled: true,
-      twoFactorSecret: 'JBSWY3DPEHPK3PXP', // Example secret (Base32)
-    },
-  });
-  console.log('Admin 2FA Secret: JBSWY3DPEHPK3PXP');
-
-  await prisma.user.create({
-    data: {
-      email: 'customer@happypets.com',
-      passwordHash,
-      role: 'customer',
-    },
+    }
   });
 
-  console.log('Creating Categories...');
-  const foodCategory = await prisma.category.create({
-    data: {
-      name: 'Premium Pet Food',
-      description: 'High quality nutrition for your furry friends.',
-    },
-  });
+  const users = [];
+  for (let i = 1; i <= 20; i++) {
+    const user = await prisma.user.create({
+      data: {
+        email: `user${i}@example.com`,
+        passwordHash,
+        firstName: `User${i}`,
+        lastName: `Customer`,
+        role: 'customer',
+        addresses: {
+          create: {
+            firstName: `User${i}`,
+            lastName: `Customer`,
+            addressLine1: `123 Main St ${i}`,
+            city: `City ${i}`,
+            postalCode: `1000${i}`,
+            country: 'USA',
+            isDefault: true,
+          }
+        }
+      }
+    });
+    users.push(user);
+  }
 
-  const toyCategory = await prisma.category.create({
-    data: {
-      name: 'Interactive Toys',
-      description: 'Keep your pets engaged and happy!',
-    },
-  });
+  // 2. Categories
+  const categoryNames = ['Food', 'Toys', 'Accessories'];
+  const categories: any = {};
+  for (const name of categoryNames) {
+    const category = await prisma.category.create({
+      data: { name, description: `Premium pet ${name.toLowerCase()}` }
+    });
+    categories[name] = category;
+  }
 
-  const accessoryCategory = await prisma.category.create({
-    data: {
-      name: 'Accessories',
-      description: 'Collars, leashes, and beds.',
-    },
-  });
-
-  console.log('Creating Products...');
-
-  const products = [
+  // 3. Products (9 real pet products)
+  const productData = [
     {
-      name: 'HappyPaws Organic Dog Kibble',
-      description: 'Grain-free, organic chicken recipe for adult dogs.',
-      price: 45.99,
-      stockQuantity: 0,
-      categoryId: foodCategory.id,
-      brand: 'HappyPaws',
-      weightMetric: 15.0,
-      rating: 4.8,
-      reviewCount: 124,
-      images: {
-        create: [
-          { url: '/images/dog_kibble_1787664582569.png', isPrimary: true }
-        ]
-      }
+      name: 'Premium Adult Dry Dog Food',
+      sku: 'FOOD-DOG-01',
+      description: 'High-quality, protein-rich dry dog food formulated for adult dogs. Promotes healthy coat and strong muscles.',
+      price: '45.99', cost: '25.00', categoryId: categories['Food'].id, brand: 'Purina',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=800&q=80', isPrimary: true },
+        { url: 'https://images.unsplash.com/photo-1589924691995-400dc9ecc119?auto=format&fit=crop&w=800&q=80', isPrimary: false }
+      ]
     },
     {
-      name: 'Purrfect Catch Tuna Feast',
-      description: 'Wet cat food made with real tuna and salmon.',
-      price: 24.50,
-      stockQuantity: 200,
-      categoryId: foodCategory.id,
-      brand: 'Purrfect',
-      weightMetric: 5.0,
-      rating: 4.5,
-      reviewCount: 89,
-      images: {
-        create: [
-          { url: '/images/cat_tuna_feast_1787664594060.png', isPrimary: true }
-        ]
-      }
+      name: 'Interactive Laser Cat Toy',
+      sku: 'TOY-CAT-01',
+      description: 'Keep your cat entertained for hours with this automatic laser pointer toy with multiple speed settings.',
+      price: '24.50', cost: '10.00', categoryId: categories['Toys'].id, brand: 'Kong',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'ToughChew Bone Toy',
-      description: 'Indestructible rubber bone for aggressive chewers.',
-      price: 12.99,
-      stockQuantity: 50,
-      categoryId: toyCategory.id,
-      brand: 'ToughChew',
-      weightMetric: 0.5,
-      rating: 4.9,
-      reviewCount: 342,
-      images: {
-        create: [
-          { url: '/images/bone_toy_1787664606581.png', isPrimary: true }
-        ]
-      }
+      name: 'Orthopedic Memory Foam Dog Bed',
+      sku: 'ACC-DOG-01',
+      description: 'Provide ultimate comfort for your furry friend with this plush orthopedic memory foam bed. Ideal for older dogs.',
+      price: '89.99', cost: '40.00', categoryId: categories['Accessories'].id, brand: 'Furhaven',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'FeatherWand Cat Teaser',
-      description: 'Interactive wand toy with real feathers and a bell.',
-      price: 8.99,
-      stockQuantity: 120,
-      categoryId: toyCategory.id,
-      brand: 'FeatherWand',
-      weightMetric: 0.1,
-      rating: 4.2,
-      reviewCount: 56,
-      images: {
-        create: [
-          { url: '/images/cat_teaser_1787664618833.png', isPrimary: true }
-        ]
-      }
+      name: 'Grain-Free Salmon Cat Food',
+      sku: 'FOOD-CAT-01',
+      description: 'Delicious grain-free cat food made with real salmon. Perfect for cats with sensitive stomachs.',
+      price: '32.99', cost: '18.00', categoryId: categories['Food'].id, brand: 'Blue Buffalo',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'Plush Calming Pet Bed',
-      description: 'Donut-shaped faux fur bed for ultimate comfort and anxiety relief.',
-      price: 35.00,
-      stockQuantity: 30,
-      categoryId: accessoryCategory.id,
-      brand: 'CozyPet',
-      weightMetric: 2.0,
-      rating: 4.7,
-      reviewCount: 210,
-      images: {
-        create: [
-          { url: '/images/pet_bed_1787664629185.png', isPrimary: true }
-        ]
-      }
+      name: 'Squeaky Rubber Dog Bone',
+      sku: 'TOY-DOG-01',
+      description: 'Durable rubber chew toy with a built-in squeaker. Great for aggressive chewers and interactive fetch games.',
+      price: '12.99', cost: '4.50', categoryId: categories['Toys'].id, brand: 'Kong',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1520315342629-6ea920342047?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'Reflective Nylon Leash',
-      description: '6-foot heavy duty leash with reflective stitching for night walks.',
-      price: 15.99,
-      stockQuantity: 80,
-      categoryId: accessoryCategory.id,
-      brand: 'SafeWalk',
-      weightMetric: 0.3,
-      rating: 4.6,
-      reviewCount: 112,
-      images: {
-        create: [
-          { url: '/images/nylon_leash_1787664641203.png', isPrimary: true }
-        ]
-      }
+      name: 'Reflective Adjustable Cat Collar',
+      sku: 'ACC-CAT-01',
+      description: 'Keep your cat safe with this highly visible reflective collar, featuring a breakaway safety buckle and a small bell.',
+      price: '9.99', cost: '3.00', categoryId: categories['Accessories'].id, brand: 'PetSafe',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1513245543132-31f507417b26?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'Luxury Pet Travel Carrier',
-      description: 'Airline approved, stylish and breathable carrier for small dogs and cats.',
-      price: 89.99,
-      stockQuantity: 40,
-      categoryId: accessoryCategory.id,
-      brand: 'Aurelia',
-      weightMetric: 3.5,
-      rating: 4.9,
-      reviewCount: 310,
-      images: {
-        create: [
-          { url: '/api/uploads/image-1788787629632-123456781.png', isPrimary: true }
-        ]
-      }
+      name: 'Large Iron Bird Cage with Stand',
+      sku: 'ACC-BIRD-01',
+      description: 'Spacious and sturdy iron bird cage featuring multiple wooden perches, feeding bowls, and a rolling stand.',
+      price: '145.00', cost: '80.00', categoryId: categories['Accessories'].id, brand: 'Prevue',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1452570053594-1b985d6ea890?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'Felix & Co. Laser Pointer Toy',
-      description: 'Interactive sleek laser pointer toy to keep your pets entertained for hours.',
-      price: 19.50,
-      stockQuantity: 150,
-      categoryId: toyCategory.id,
-      brand: 'Felix & Co.',
-      weightMetric: 0.2,
-      rating: 4.8,
-      reviewCount: 425,
-      images: {
-        create: [
-          { url: '/api/uploads/image-1788787650779-123456782.png', isPrimary: true }
-        ]
-      }
+      name: 'Premium Wild Bird Seed Mix',
+      sku: 'FOOD-BIRD-01',
+      description: 'Nutritious blend of sunflower seeds, peanuts, and millet to attract a variety of beautiful wild birds.',
+      price: '18.50', cost: '9.00', categoryId: categories['Food'].id, brand: 'Kaytee',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1452570053594-1b985d6ea890?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     },
     {
-      name: 'Feline Finery Salmon Treats',
-      description: 'Premium salmon flavor cat treats made with real Atlantic salmon.',
-      price: 14.99,
-      stockQuantity: 300,
-      categoryId: foodCategory.id,
-      brand: 'Feline Finery',
-      weightMetric: 0.3,
-      rating: 4.7,
-      reviewCount: 289,
-      images: {
-        create: [
-          { url: '/api/uploads/image-1788787670706-123456783.png', isPrimary: true }
-        ]
-      }
+      name: 'Professional Pet Grooming Brush',
+      sku: 'ACC-GROOM-01',
+      description: 'Self-cleaning slicker brush that gently removes loose hair and eliminates tangles, knots, and trapped dirt.',
+      price: '16.99', cost: '5.50', categoryId: categories['Accessories'].id, brand: 'Hertzko',
+      images: [
+        { url: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?auto=format&fit=crop&w=800&q=80', isPrimary: true }
+      ]
     }
   ];
 
-  for (const p of products) {
-    await prisma.product.create({ data: p });
+  const products = [];
+  for (const prodData of productData) {
+    const product = await prisma.product.create({
+      data: {
+        name: prodData.name,
+        sku: prodData.sku,
+        description: prodData.description,
+        price: prodData.price,
+        cost: prodData.cost,
+        stockQuantity: Math.floor(Math.random() * 100) + 10,
+        categoryId: prodData.categoryId,
+        brand: prodData.brand,
+        rating: (Math.random() * 1 + 4).toFixed(2), // 4 to 5 rating
+        reviewCount: 3, 
+        images: {
+          create: prodData.images
+        }
+      }
+    });
+    products.push(product);
   }
 
-  console.log('Seed completed successfully!');
+  // 4. Coupons
+  for (let i = 1; i <= 3; i++) {
+    await prisma.coupon.create({
+      data: {
+        code: `DISCOUNT${i}0`,
+        discountType: i % 2 === 0 ? 'percentage' : 'fixed',
+        discountValue: i * 10,
+        isActive: true,
+      }
+    });
+  }
+
+  // 5. FAQ (10)
+  for (let i = 1; i <= 10; i++) {
+    await prisma.faq.create({
+      data: {
+        question: `Frequently Asked Question ${i}?`,
+        answer: `This is the detailed answer to question ${i}. It provides all the necessary information.`,
+        order: i
+      }
+    });
+  }
+
+  // 6. Reviews (for all products, 3 each)
+  for (const product of products) {
+    for (let i = 0; i < 3; i++) {
+      const user = users[Math.floor(Math.random() * users.length)];
+      await prisma.review.create({
+        data: {
+          productId: product.id,
+          userId: user.id,
+          rating: Math.floor(Math.random() * 3) + 3, // 3 to 5 rating
+          comment: `Great product, really enjoyed using it. Would recommend! (${i+1})`,
+          status: 'approved',
+        }
+      });
+    }
+  }
+
+  // 7. Orders & Payments (50)
+  const orderStatuses = Object.values(OrderStatus);
+  const paymentStatuses = ['succeeded', 'pending', 'failed']; 
+  const paymentStatusEnums = Object.values(PaymentStatus); 
+
+  for (let i = 1; i <= 50; i++) {
+    const user = users[Math.floor(Math.random() * users.length)];
+    const product1 = products[Math.floor(Math.random() * products.length)];
+    const product2 = products[Math.floor(Math.random() * products.length)];
+    
+    const quantity1 = Math.floor(Math.random() * 3) + 1;
+    const quantity2 = Math.floor(Math.random() * 2) + 1;
+
+    const totalAmount = (Number(product1.price) * quantity1) + (Number(product2.price) * quantity2);
+
+    const ordStatus = orderStatuses[i % orderStatuses.length];
+    const payStatusEnum = paymentStatusEnums[i % paymentStatusEnums.length];
+    const payProviderStatus = paymentStatuses[i % paymentStatuses.length];
+
+    const order = await prisma.order.create({
+      data: {
+        userId: user.id,
+        status: ordStatus,
+        paymentStatus: payStatusEnum,
+        totalAmount: totalAmount.toFixed(2),
+        shippingAddress: JSON.stringify({
+          firstName: user.firstName,
+          lastName: user.lastName,
+          addressLine1: '123 Order St',
+          city: 'Order City',
+          postalCode: '10001',
+          country: 'USA'
+        }),
+        shippingMethod: 'standard',
+        shippingCost: 0,
+        items: {
+          create: [
+            { productId: product1.id, quantity: quantity1, price: product1.price, cost: product1.cost },
+            { productId: product2.id, quantity: quantity2, price: product2.price, cost: product2.cost }
+          ]
+        }
+      }
+    });
+
+    await prisma.payment.create({
+      data: {
+        orderId: order.id,
+        amount: totalAmount.toFixed(2),
+        status: payProviderStatus, 
+        provider: 'stripe',
+        transactionId: `txn_fake_${i}_${Date.now()}`
+      }
+    });
+  }
+
+  console.log('Seed data successfully generated.');
 }
 
 main()

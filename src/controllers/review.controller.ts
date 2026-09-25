@@ -27,10 +27,7 @@ export const addReview = async (req: Request, res: Response, next: NextFunction)
         productId,
         order: {
           userId,
-          paymentStatus: 'PAID',
-          status: {
-            notIn: ['CANCELLED']
-          }
+          status: 'DELIVERED'
         }
       }
     });
@@ -121,3 +118,36 @@ async function updateProductRating(productId: string) {
     }
   });
 }
+
+export const checkEligibility = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const { productId } = req.params as { productId: string };
+
+    const existingReview = await prisma.review.findFirst({
+      where: { userId, productId }
+    });
+
+    if (existingReview) {
+      return res.json({ eligible: false, reason: 'You have already reviewed this product' });
+    }
+
+    const hasPurchased = await prisma.orderItem.findFirst({
+      where: {
+        productId,
+        order: {
+          userId,
+          status: 'DELIVERED'
+        }
+      }
+    });
+
+    if (!hasPurchased) {
+      return res.json({ eligible: false, reason: 'Only users who have purchased and received this product can leave a review.' });
+    }
+
+    res.json({ eligible: true });
+  } catch (error) {
+    next(error);
+  }
+};
