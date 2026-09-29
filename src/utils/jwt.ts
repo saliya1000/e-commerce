@@ -1,10 +1,10 @@
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 
-export const generateAccessToken = (userId: string, role: string) => {
+export const generateAccessToken = (userId: string, role: string, twoFactorEnabled: boolean = false) => {
   const secret = process.env.JWT_ACCESS_SECRET || 'access_secret';
   // Short-lived access token (15-60 mins as per requirement, let's do 15m)
-  return jwt.sign({ userId, role }, secret, { expiresIn: '15m' });
+  return jwt.sign({ userId, role, twoFactorEnabled }, secret, { expiresIn: '15m' });
 };
 
 export const generateRefreshToken = (userId: string) => {
@@ -16,7 +16,7 @@ export const generateRefreshToken = (userId: string) => {
 
 export const verifyAccessToken = (token: string) => {
   const secret = process.env.JWT_ACCESS_SECRET || 'access_secret';
-  return jwt.verify(token, secret) as { userId: string, role: string };
+  return jwt.verify(token, secret) as { userId: string, role: string, twoFactorEnabled: boolean };
 };
 
 export const verifyRefreshToken = (token: string) => {

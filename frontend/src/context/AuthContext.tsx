@@ -8,6 +8,7 @@ interface User {
   firstName?: string;
   lastName?: string;
   hasPassword?: boolean; // false for OAuth-only users who haven't set a password yet
+  twoFactorEnabled?: boolean;
 }
 
 interface AuthContextType {

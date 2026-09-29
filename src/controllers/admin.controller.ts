@@ -44,6 +44,47 @@ export const getUsers = async (req: Request, res: Response, next: NextFunction) 
   } catch (error) { next(error); }
 };
 
+import bcrypt from 'bcrypt';
+
+export const createUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (req.user?.role !== 'superadmin' && req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'Not authorized to create users.' });
+    }
+
+    const { email, password, firstName, lastName, role } = req.body;
+    if (!email || !password || !firstName || !lastName || !role) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!['customer', 'admin', 'superadmin', 'support', 'sales'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash: hashedPassword,
+        firstName,
+        lastName,
+        role
+      }
+    });
+    
+    const { passwordHash: _, ...userWithoutPassword } = user;
+    res.status(201).json(userWithoutPassword);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const updateUserRole = async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Only superadmin can change roles (Principle of Least Privilege)

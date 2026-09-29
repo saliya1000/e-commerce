@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { 
-  getUsers, updateUserRole, 
+  getUsers, updateUserRole, createUser,
   getAllOrders, updateOrderStatus, getPendingOrderCount,
   deleteReview, getReviews, updateReviewStatus,
   bulkUploadProducts, updateProduct, deleteProduct, quickUpdateProduct,
@@ -22,6 +22,7 @@ router.use(requireAuth, requireRole('admin'), auditLogger);
 
 // Users
 router.get('/users', getUsers);
+router.post('/users', createUser);
 router.put('/users/:userId/role', updateUserRole);
 router.post('/promote', promoteToAdmin);
 

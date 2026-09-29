@@ -120,7 +120,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     }
 
     // Generate Tokens
-    const accessToken = generateAccessToken(user.id, user.role);
+    const accessToken = generateAccessToken(user.id, user.role, user.twoFactorEnabled);
     const refreshToken = generateRefreshToken(user.id);
     const hashedRT = hashToken(refreshToken);
 
@@ -144,7 +144,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName, hasPassword: !!user.passwordHash } });
+    res.json({ accessToken, user: { id: user.id, email: user.email, role: user.role, firstName: user.firstName, lastName: user.lastName, hasPassword: !!user.passwordHash, twoFactorEnabled: user.twoFactorEnabled } });
   } catch (error) {
     next(error);
   }
@@ -193,7 +193,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
     });
 
     // Generate new Tokens (Refresh Token Rotation)
-    const newAccessToken = generateAccessToken(user.id, user.role);
+    const newAccessToken = generateAccessToken(user.id, user.role, user.twoFactorEnabled);
     const newRefreshToken = generateRefreshToken(user.id);
     const newHashedRT = hashToken(newRefreshToken);
 
@@ -223,7 +223,8 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
-        hasPassword: !!user.passwordHash
+        hasPassword: !!user.passwordHash,
+        twoFactorEnabled: user.twoFactorEnabled
       }
     });
   } catch (error) {

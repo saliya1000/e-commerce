@@ -27,18 +27,21 @@ const AdminDashboard: React.FC = () => {
   const [userSearch, setUserSearch] = useState('');
   const [userDebouncedSearch, setUserDebouncedSearch] = useState('');
 
+  const [showCreateUser, setShowCreateUser] = useState(false);
+  const [newUser, setNewUser] = useState({ email: '', password: '', firstName: '', lastName: '', role: 'customer' });
+
   const [faqs, setFaqs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [newFaq, setNewFaq] = useState({ question: '', answer: '', order: 0 });
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'admin') {
+    if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'superadmin')) {
       navigate('/');
     }
   }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' || user?.role === 'superadmin') {
       api.get('/admin/orders/pending-count').then(res => setPendingOrdersCount(res.data.count)).catch(console.error);
     }
   }, [user]);
@@ -119,7 +122,42 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  if (user?.role !== 'admin') return null;
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/admin/users', newUser);
+      setShowCreateUser(false);
+      setNewUser({ email: '', password: '', firstName: '', lastName: '', role: 'customer' });
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to create user');
+    }
+  };
+
+  if (user?.role !== 'admin' && user?.role !== 'superadmin') return null;
+
+  if (!user.twoFactorEnabled) {
+    return (
+      <div style={{ background: 'var(--bg-main)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="glass-panel" style={{ padding: '2.5rem', textAlign: 'center', maxWidth: '450px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ background: 'var(--primary)', color: 'white', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1rem' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>lock</span>
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>2FA Required</h2>
+          <p style={{ color: 'var(--text-muted)' }}>
+            For security purposes, all admin accounts must have Two-Factor Authentication enabled before managing the store.
+          </p>
+          <button 
+            className="btn btn-primary"
+            onClick={() => navigate('/account')}
+            style={{ marginTop: '1rem', width: '100%', padding: '0.75rem', fontSize: '1rem' }}
+          >
+            Go to Account Settings
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ background: '#f1f5f9', minHeight: '100vh', paddingBottom: '2rem' }}>
@@ -240,9 +278,36 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'users' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-              <h3 className="font-bold" style={{ fontSize: '1.5rem', margin: 0 }}>User Management</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <h3 className="font-bold" style={{ fontSize: '1.5rem', margin: 0 }}>User Management</h3>
+                <button className="btn btn-primary btn-sm" onClick={() => setShowCreateUser(true)}>+ Create User</button>
+              </div>
               <AdminSearch search={userSearch} setSearch={setUserSearch} placeholder="Search users by email or name..." />
             </div>
+
+            {showCreateUser && (
+              <div style={{ background: 'var(--bg-secondary)', padding: '1.5rem', borderRadius: '8px', marginBottom: '1.5rem' }}>
+                <h4 className="font-bold mb-4">Create New User</h4>
+                <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <input type="email" placeholder="Email" required className="form-input" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+                  <input type="password" placeholder="Password" required className="form-input" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                  <input type="text" placeholder="First Name" required className="form-input" value={newUser.firstName} onChange={e => setNewUser({...newUser, firstName: e.target.value})} />
+                  <input type="text" placeholder="Last Name" required className="form-input" value={newUser.lastName} onChange={e => setNewUser({...newUser, lastName: e.target.value})} />
+                  <select className="form-input" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                    <option value="customer">Customer</option>
+                    <option value="support">Support</option>
+                    <option value="sales">Sales</option>
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Superadmin</option>
+                  </select>
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <button type="submit" className="btn btn-primary">Create User</button>
+                    <button type="button" className="btn btn-outline" onClick={() => setShowCreateUser(false)}>Cancel</button>
+                  </div>
+                </form>
+              </div>
+            )}
+
             {loading ? <p>Loading...</p> : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>

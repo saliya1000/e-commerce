@@ -47,7 +47,7 @@ describe('Auth Middleware', () => {
   });
 
   it('requireRole should return 403 if user lacks role', () => {
-    mockRequest = { user: { userId: '123', role: 'customer' } };
+    mockRequest = { user: { userId: '123', role: 'customer', twoFactorEnabled: false } };
     const middleware = requireRole('admin');
     
     middleware(mockRequest as Request, mockResponse as Response, nextFunction);
@@ -57,7 +57,7 @@ describe('Auth Middleware', () => {
   });
 
   it('requireRole should call next if user has role', () => {
-    mockRequest = { user: { userId: '123', role: 'admin' } };
+    mockRequest = { user: { userId: '123', role: 'admin', twoFactorEnabled: true } };
     const middleware = requireRole('admin');
     
     middleware(mockRequest as Request, mockResponse as Response, nextFunction);

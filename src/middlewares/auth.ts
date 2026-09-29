@@ -9,6 +9,7 @@ declare global {
       user?: {
         userId: string;
         role: string;
+        twoFactorEnabled: boolean;
       };
     }
   }
@@ -79,6 +80,11 @@ export const requireRole = (roles: string | string[]) => {
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+    }
+
+    // Enforce 2FA for all admin accounts on protected routes
+    if ((req.user.role === 'admin' || req.user.role === 'superadmin') && !req.user.twoFactorEnabled) {
+      return res.status(403).json({ error: '2FA setup required to access admin resources' });
     }
 
 

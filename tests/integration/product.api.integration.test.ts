@@ -24,7 +24,7 @@ describe('Product API Integration', () => {
 
     // 2. Generate a valid JWT for the admin
     adminToken = jwt.sign(
-      { userId: admin.id, role: admin.role, twoFactorEnabled: false }, 
+      { userId: admin.id, role: admin.role, twoFactorEnabled: true }, 
       process.env.JWT_ACCESS_SECRET || 'access_secret', 
       { expiresIn: '15m' }
     );
