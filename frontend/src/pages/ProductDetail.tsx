@@ -176,37 +176,37 @@ const ProductDetail: React.FC = () => {
       )}
 
       {/* Reviews Section */}
-      <section className="py-12" style={{ borderTop: '1px solid var(--border-color)', marginTop: '2rem' }}>
+      <section className="py-12" style={{ marginTop: '2rem' }}>
         {/* Top Header */}
-        <div className="flex justify-between items-center pb-4 mb-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <div className="flex items-center gap-3">
-            <span className="font-extrabold" style={{ fontSize: '1.25rem' }}>{product.reviewCount} reviews</span>
-            <span className="text-muted">|</span>
-            <span className="font-extrabold text-lg">{product.rating ? Number(product.rating).toFixed(1) : '0.0'}</span>
-            <div className="flex">
-              {[1, 2, 3, 4, 5].map(star => (
-                <Star key={star} size={18} fill={star <= Number(product.rating) ? 'var(--text-main)' : 'transparent'} color="var(--text-main)" />
-              ))}
+        <div className="flex justify-between items-center pb-6 mb-8" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+          <div className="flex items-center gap-4">
+            <h2 className="font-extrabold text-3xl m-0">{product.reviewCount} Reviews</h2>
+            <div className="h-8 w-px bg-gray-300 dark:bg-gray-700"></div>
+            <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-4 py-2 rounded-full">
+              <span className="font-extrabold text-xl text-yellow-600 dark:text-yellow-500">{product.rating ? Number(product.rating).toFixed(1) : '0.0'}</span>
+              <div className="flex">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <Star key={star} size={20} fill={star <= Number(product.rating) ? '#F59E0B' : 'transparent'} color="#F59E0B" />
+                ))}
+              </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-md" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', fontSize: '0.875rem', fontWeight: 600 }}>
-            <ShieldCheck size={16} /> All reviews are from verified purchases
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full shadow-sm" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', fontSize: '0.9rem', fontWeight: 700 }}>
+            <ShieldCheck size={18} /> Verified Purchases
           </div>
         </div>
 
         {/* Filters */}
-        <div className="flex gap-3 mb-8 items-center flex-wrap">
+        <div className="flex gap-4 mb-8 p-1 rounded-xl bg-gray-100 dark:bg-gray-800 w-max shadow-inner">
           <button 
             onClick={() => setSortType('recommended')}
-            className={`btn btn-outline px-4 py-1.5 rounded-full text-sm flex items-center gap-1 ${sortType === 'recommended' ? 'font-semibold text-main' : 'text-muted'}`} 
-            style={{ border: sortType === 'recommended' ? '1px solid var(--text-main)' : '1px solid var(--border-color)' }}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${sortType === 'recommended' ? 'bg-white dark:bg-gray-700 shadow-md text-primary' : 'text-muted hover:text-main'}`} 
           >
             Recommended
           </button>
           <button 
             onClick={() => setSortType('recent')}
-            className={`btn btn-outline px-4 py-1.5 rounded-full text-sm flex items-center gap-1 ${sortType === 'recent' ? 'font-semibold text-main' : 'text-muted'}`} 
-            style={{ border: sortType === 'recent' ? '1px solid var(--text-main)' : '1px solid var(--border-color)' }}
+            className={`px-6 py-2 rounded-lg text-sm font-bold transition-all duration-300 ${sortType === 'recent' ? 'bg-white dark:bg-gray-700 shadow-md text-primary' : 'text-muted hover:text-main'}`} 
           >
             Most recent
           </button>
@@ -219,7 +219,7 @@ const ProductDetail: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="flex flex-col gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[...reviews]
                 .sort((a, b) => {
                   if (sortType === 'recent') {
@@ -229,40 +229,38 @@ const ProductDetail: React.FC = () => {
                 })
                 .slice(0, visibleReviews)
                 .map(review => (
-                <div key={review.id} className="pb-6" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                <div key={review.id} className="p-6 rounded-2xl bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md">
                   {/* Review Header */}
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
-                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#E91E63', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem' }}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #FF4B2B, #FF416C)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 4px 10px rgba(255, 65, 108, 0.3)' }}>
                         {review.user?.firstName?.[0] || 'A'}
                       </div>
-                      <div>
-                        <span className="font-bold text-sm text-main">{review.user?.firstName} {review.user?.lastName?.[0]}.</span>
-                        <span className="text-muted text-sm mx-1">on {new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-main" style={{ fontSize: '1.05rem' }}>{review.user?.firstName} {review.user?.lastName?.[0]}.</span>
+                        <span className="text-muted text-xs font-medium">on {new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
                   </div>
                   
                   {/* Rating & Tag */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="flex">
-                      {[1, 2, 3, 4, 5].map(star => (
-                        <Star key={star} size={16} fill={star <= review.rating ? 'var(--text-main)' : 'transparent'} color="var(--text-main)" />
-                      ))}
-                    </div>
+                  <div className="flex items-center gap-1 mb-4 bg-yellow-50 dark:bg-yellow-900/10 w-max px-2 py-1 rounded-md">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <Star key={star} size={14} fill={star <= review.rating ? '#F59E0B' : 'transparent'} color="#F59E0B" />
+                    ))}
                   </div>
                   
                   {/* Comment */}
-                  {review.comment && <p className="text-main mb-3" style={{ lineHeight: 1.6, fontSize: '1rem' }}>{review.comment}</p>}
+                  {review.comment && <p className="text-main mb-6" style={{ lineHeight: 1.7, fontSize: '1rem', color: 'var(--text-muted)' }}>"{review.comment}"</p>}
 
                   {/* Helpful Button */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center mt-auto border-t border-gray-100 dark:border-gray-700 pt-4">
                     <button 
                       onClick={() => handleVoteHelpful(review.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded border text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
-                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      style={{ color: review.helpfulVotes > 0 ? 'var(--primary)' : 'var(--text-muted)' }}
                     >
-                      👍 Helpful ({review.helpfulVotes || 0})
+                      👍 Helpful <span className="bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full text-xs">{review.helpfulVotes || 0}</span>
                     </button>
                   </div>
                 </div>
