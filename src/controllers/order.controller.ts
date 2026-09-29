@@ -23,7 +23,7 @@ export const checkoutSchema = Joi.object({
     email: Joi.string().email().allow(null, '').optional()
   }).required(),
   shippingMethod: Joi.string().valid('standard', 'express', 'overnight').optional(),
-  existingOrderId: Joi.string().uuid().optional(),
+  existingOrderId: Joi.string().uuid().allow(null, '').optional(),
   saveAddress: Joi.boolean().optional(),
   couponCode: Joi.string().allow(null, '').optional()
 });
@@ -117,6 +117,11 @@ export const checkout = async (req: Request, res: Response) => {
     
     console.log(`[CHECKOUT] userId: ${userId}, guestId: ${guestId}`);
 
+    if (!userId && !guestId) {
+      res.status(400).json({ message: 'Validation failed', error: 'Missing user session or guest ID' });
+      return;
+    }
+
     const cart = await prisma.cart.findUnique({
       where: userId ? { userId } : { guestId },
       include: { items: { include: { product: true } } }
@@ -125,7 +130,7 @@ export const checkout = async (req: Request, res: Response) => {
     console.log(`[CHECKOUT] Cart found:`, cart ? `Yes, with ${cart.items.length} items` : `No`);
 
     if (!cart || cart.items.length === 0) {
-      res.status(400).json({ message: 'Cart is empty' });
+      res.status(400).json({ message: 'Validation failed', error: 'Cart is empty' });
       return;
     }
 
@@ -192,7 +197,7 @@ export const checkout = async (req: Request, res: Response) => {
           where: { id: existingOrderId },
           data: {
             totalAmount,
-            shippingAddress: encryptJson(shippingAddress),
+            shippingAddress: shippingAddress,
             shippingMethod: shippingMethod || 'standard',
             shippingCost,
             couponId: appliedCouponId,
@@ -217,7 +222,7 @@ export const checkout = async (req: Request, res: Response) => {
           guestId: userId ? null : guestId,
           paymentStatus: 'UNPAID',
           totalAmount,
-          shippingAddress: encryptJson(shippingAddress),
+          shippingAddress: shippingAddress,
           shippingMethod: shippingMethod || 'standard',
           shippingCost,
           couponId: appliedCouponId,
@@ -347,6 +352,14 @@ export const checkout = async (req: Request, res: Response) => {
   }
 };
 
+const mapOrderStatus = (order: any) => {
+  if (order.status === 'PENDING') {
+    if (order.paymentStatus === 'PAID') return 'Payment Successful';
+    return 'Pending Payment';
+  }
+  return order.status.charAt(0).toUpperCase() + order.status.slice(1).toLowerCase();
+};
+
 export const getOrders = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
@@ -359,7 +372,15 @@ export const getOrders = async (req: Request, res: Response) => {
     let whereClause: any = { userId };
     
     if (status && status !== 'All') {
-      whereClause.status = status;
+      if (status === 'Pending Payment') {
+        whereClause.status = 'PENDING';
+        whereClause.paymentStatus = { in: ['UNPAID', 'FAILED'] };
+      } else if (status === 'Payment Successful') {
+        whereClause.status = 'PENDING';
+        whereClause.paymentStatus = 'PAID';
+      } else {
+        whereClause.status = (status as string).toUpperCase();
+      }
     }
     
     if (days && days !== 'All') {
@@ -387,7 +408,8 @@ export const getOrders = async (req: Request, res: Response) => {
 
     const decryptedOrders = orders.map(order => ({
       ...order,
-      shippingAddress: decryptJson(order.shippingAddress)
+      status: mapOrderStatus(order),
+      shippingAddress: order.shippingAddress
     }));
 
     res.json(decryptedOrders);
@@ -434,7 +456,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
         return;
       }
     }
-    res.json({ status: order.status });
+    res.json({ status: mapOrderStatus(order) });
   } catch (error: any) {
     res.status(500).json({ message: 'Failed to verify payment', error: error.message });
   }
@@ -469,7 +491,8 @@ export const getOrder = async (req: Request, res: Response) => {
 
     const decryptedOrder = {
       ...order,
-      shippingAddress: decryptJson(order.shippingAddress)
+      status: mapOrderStatus(order),
+      shippingAddress: order.shippingAddress
     };
 
     res.json(decryptedOrder);
@@ -560,7 +583,7 @@ export const trackOrder = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    const shippingAddress: any = decryptJson(order.shippingAddress) || {};
+    const shippingAddress: any = order.shippingAddress || {};
     const orderEmail = order.user?.email || shippingAddress.email;
 
     if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {
@@ -569,6 +592,7 @@ export const trackOrder = async (req: Request, res: Response) => {
 
     const decryptedOrder = {
       ...order,
+      status: mapOrderStatus(order),
       shippingAddress
     };
 
@@ -595,7 +619,7 @@ export const trackCancelOrder = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Order not found' });
     }
 
-    const shippingAddress: any = decryptJson(order.shippingAddress) || {};
+    const shippingAddress: any = order.shippingAddress || {};
     const orderEmail = order.user?.email || shippingAddress.email;
 
     if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {

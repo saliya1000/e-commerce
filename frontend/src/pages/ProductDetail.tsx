@@ -16,12 +16,6 @@ const ProductDetail: React.FC = () => {
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
   
-  // Review form state
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
-  const [reviewError, setReviewError] = useState('');
-  const [reviewEligibility, setReviewEligibility] = useState<{ eligible: boolean; reason?: string } | null>(null);
-  const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
     const fetchProductAndReviews = async () => {
@@ -44,17 +38,6 @@ const ProductDetail: React.FC = () => {
           // Filter out current product and keep up to 4
           setRelatedProducts(relatedRes.data.data.filter((p: any) => p.id !== id).slice(0, 4));
         }
-
-        // Fetch review eligibility
-        if (isAuthenticated) {
-          try {
-            const eligRes = await api.get(`/reviews/products/${id}/eligibility`);
-            setReviewEligibility(eligRes.data);
-          } catch (e) {
-            console.error('Failed to fetch eligibility', e);
-            setReviewEligibility({ eligible: false, reason: 'Could not verify purchase status.' });
-          }
-        }
       } catch (err) {
         console.error('Failed to fetch product details', err);
       } finally {
@@ -67,18 +50,7 @@ const ProductDetail: React.FC = () => {
     }
   }, [id, isAuthenticated]);
 
-  const submitReview = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setReviewError('');
-    try {
-      const res = await api.post(`/reviews/products/${id}`, { rating, comment });
-      setReviews([res.data, ...reviews]);
-      setComment('');
-      setShowReviewForm(false);
-    } catch (err: any) {
-      setReviewError(err.response?.data?.error || 'Failed to submit review');
-    }
-  };
+
 
   const handleVote = async (reviewId: string) => {
     try {
@@ -201,9 +173,6 @@ const ProductDetail: React.FC = () => {
       <section className="py-12" style={{ borderTop: '1px solid var(--border-color)' }}>
         <div className="flex justify-between items-center mb-8">
           <h2 className="font-extrabold" style={{ fontSize: '2rem' }}>Customer Reviews</h2>
-          {isAuthenticated && reviewEligibility?.eligible && !showReviewForm && (
-            <button className="btn btn-outline" onClick={() => setShowReviewForm(true)}>Write a Review</button>
-          )}
         </div>
         
         <div className="grid grid-cols-3 md:grid-cols-1 gap-12 flex-col-mobile">
@@ -241,44 +210,10 @@ const ProductDetail: React.FC = () => {
               </div>
             </div>
 
-            {showReviewForm && isAuthenticated && reviewEligibility?.eligible && (
-              <form onSubmit={submitReview} className="glass-panel" style={{ animation: 'fadeUp 0.3s ease forwards' }}>
-                <div className="flex justify-between items-center mb-6">
-                  <h4 className="font-bold" style={{ fontSize: '1.25rem' }}>Write a Review</h4>
-                  <button type="button" onClick={() => setShowReviewForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
-                </div>
-                {reviewError && <p className="error-text">{reviewError}</p>}
-                
-                <div className="input-group">
-                  <label htmlFor="rating">Rating</label>
-                  <select id="rating" value={rating} onChange={(e) => setRating(Number(e.target.value))}>
-                    <option value={5}>5 - Excellent</option>
-                    <option value={4}>4 - Good</option>
-                    <option value={3}>3 - Average</option>
-                    <option value={2}>2 - Poor</option>
-                    <option value={1}>1 - Terrible</option>
-                  </select>
-                </div>
-                
-                <div className="input-group">
-                  <label htmlFor="comment">Comment</label>
-                  <textarea 
-                    id="comment"
-                    value={comment} 
-                    onChange={(e) => setComment(e.target.value)} 
-                    style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1rem', color: 'var(--text-main)', fontFamily: 'inherit', width: '100%', resize: 'vertical' }}
-                    rows={4}
-                    placeholder="Share your thoughts about this product..."
-                  ></textarea>
-                </div>
-                
-                <button type="submit" className="btn mt-4">Submit Review</button>
-              </form>
-            )}
-          </div>
+            </div>
 
           {/* Right Column: Review List */}
-          <div className="col-span-2 flex flex-col gap-6" style={{ flex: '2' }}>
+          <div className="col-span-2" style={{ flex: '2', display: 'flex', gap: '1.5rem', overflowX: 'auto', paddingBottom: '1rem', scrollSnapType: 'x mandatory' }}>
             {reviews.length === 0 ? (
               <div className="glass-panel text-center py-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                 <h3 className="font-bold text-muted mb-2">No reviews yet</h3>
@@ -286,7 +221,7 @@ const ProductDetail: React.FC = () => {
               </div>
             ) : (
               reviews.map(review => (
-                <div key={review.id} className="glass-panel transition-transform hover:shadow-md" style={{ padding: '1.75rem' }}>
+                <div key={review.id} className="glass-panel transition-transform hover:shadow-md" style={{ padding: '1.75rem', minWidth: '350px', flex: '0 0 auto', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column' }}>
                   <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-3">
                       <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
@@ -307,9 +242,9 @@ const ProductDetail: React.FC = () => {
                       <Star key={star} size={16} fill={star <= review.rating ? '#F59E0B' : 'transparent'} color={star <= review.rating ? '#F59E0B' : 'var(--border-color)'} />
                     ))}
                   </div>
-                  {review.comment && <p className="text-main" style={{ lineHeight: 1.6, marginBottom: '1.5rem', fontSize: '1.05rem' }}>{review.comment}</p>}
+                  {review.comment && <p className="text-main" style={{ lineHeight: 1.6, marginBottom: '1.5rem', fontSize: '1.05rem', flex: 1 }}>{review.comment}</p>}
                   
-                  <div className="flex items-center">
+                  <div className="flex items-center mt-auto">
                     <button 
                       onClick={() => handleVote(review.id)}
                       className="flex items-center gap-2 text-muted transition-transform hover:scale-105"

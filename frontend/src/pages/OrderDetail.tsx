@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ArrowLeft, Package, CheckCircle, Truck, XCircle } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, Truck, XCircle, Star, X } from 'lucide-react';
 
 const OrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -9,6 +9,12 @@ const OrderDetail: React.FC = () => {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [reviewingProduct, setReviewingProduct] = useState<any>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewedItems, setReviewedItems] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -24,6 +30,55 @@ const OrderDetail: React.FC = () => {
     };
     fetchOrder();
   }, [id]);
+
+  useEffect(() => {
+    const fetchEligibilities = async () => {
+      if (order?.status === 'Delivered' && order?.items) {
+        const checks: Record<string, boolean> = { ...reviewedItems };
+        let updated = false;
+        for (const item of order.items) {
+          if (checks[item.productId] !== undefined) continue;
+          try {
+            const res = await api.get(`/reviews/products/${item.productId}/eligibility`);
+            if (res.data.reason === 'You have already reviewed this product') {
+              checks[item.productId] = true;
+              updated = true;
+            } else {
+              checks[item.productId] = false;
+              updated = true;
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+        if (updated) {
+          setReviewedItems(checks);
+        }
+      }
+    };
+    fetchEligibilities();
+  }, [order]);
+
+  const submitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewingProduct) return;
+    setReviewError('');
+    setReviewSubmitting(true);
+    try {
+      await api.post(`/reviews/products/${reviewingProduct.productId}`, {
+        rating: reviewRating,
+        comment: reviewText
+      });
+      setReviewedItems(prev => ({ ...prev, [reviewingProduct.productId]: true }));
+      setReviewingProduct(null);
+      setReviewRating(5);
+      setReviewText('');
+    } catch (err: any) {
+      setReviewError(err.response?.data?.error || 'Failed to submit review');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const handleCancelOrder = async () => {
     if (!window.confirm('Are you sure you want to cancel this order?')) return;
@@ -144,8 +199,24 @@ const OrderDetail: React.FC = () => {
                     <Link to={`/products/${item.productId}`} style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-h)', textDecoration: 'none' }}>{item.product.name}</Link>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Qty: {item.quantity}</div>
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent)' }}>
-                    ${(Number(item.price) * item.quantity).toFixed(2)}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent)' }}>
+                      ${(Number(item.price) * item.quantity).toFixed(2)}
+                    </div>
+                    {currentStep === 3 && reviewedItems[item.productId] === false && (
+                      <button 
+                        onClick={() => setReviewingProduct(item)}
+                        className="btn btn-outline" 
+                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.85rem' }}
+                      >
+                        Write Review
+                      </button>
+                    )}
+                    {currentStep === 3 && reviewedItems[item.productId] === true && (
+                      <span style={{ fontSize: '0.85rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <CheckCircle size={14} /> Reviewed
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -181,6 +252,62 @@ const OrderDetail: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Review Modal */}
+        {reviewingProduct && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '1rem'
+          }}>
+            <form onSubmit={submitReview} className="glass-panel fade-in" style={{
+              width: '100%', maxWidth: '500px', padding: '2rem', borderRadius: '16px', position: 'relative',
+              backgroundColor: 'var(--bg-main)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h4 style={{ fontSize: '1.25rem', margin: 0 }}>Review {reviewingProduct.product.name}</h4>
+                <button type="button" onClick={() => setReviewingProduct(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                  <X size={24} />
+                </button>
+              </div>
+              
+              {reviewError && <p className="error-text" style={{ marginBottom: '1rem' }}>{reviewError}</p>}
+              
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>Rating</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button 
+                      key={star} 
+                      type="button" 
+                      onClick={() => setReviewRating(star)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                    >
+                      <Star size={32} fill={star <= reviewRating ? '#F59E0B' : 'transparent'} color={star <= reviewRating ? '#F59E0B' : 'var(--border-color)'} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem' }}>Comment</label>
+                <textarea 
+                  className="form-input" 
+                  rows={4} 
+                  value={reviewText} 
+                  onChange={e => setReviewText(e.target.value)}
+                  placeholder="What did you like or dislike?"
+                  style={{ width: '100%' }}
+                ></textarea>
+              </div>
+              
+              <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={reviewSubmitting}>
+                {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+              </button>
+            </form>
+          </div>
+        )}
 
       </div>
     </div>

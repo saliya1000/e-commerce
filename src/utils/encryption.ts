@@ -34,6 +34,11 @@ export function encrypt(text: string): string {
 export function decrypt(text: string): string {
   if (!text) return text;
   
+  if (typeof text !== 'string') {
+    console.warn(`[ENCRYPTION] decrypt called with non-string type: ${typeof text}`, text);
+    return text as any;
+  }
+  
   const parts = text.split(':');
   if (parts.length !== 3) {
     // Return as is (useful for existing plaintext data)

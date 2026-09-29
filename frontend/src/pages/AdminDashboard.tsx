@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { SEO } from '../components/SEO';
-import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Download, Tag } from 'lucide-react';
+import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Download, Tag, Star } from 'lucide-react';
 
 import { AdminCategories } from '../components/admin/AdminCategories';
 import { AdminProducts } from '../components/admin/AdminProducts';
@@ -14,6 +14,7 @@ import { AdminPagination } from '../components/admin/AdminPagination';
 import { AdminOverview } from '../components/admin/AdminOverview';
 import { AdminReports } from '../components/admin/AdminReports';
 import { AdminPromotions } from '../components/admin/AdminPromotions';
+import { AdminReviews } from '../components/admin/AdminReviews';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -180,6 +181,13 @@ const AdminDashboard: React.FC = () => {
           <Tag size={18} /> Promotions
         </button>
 
+        <button 
+          onClick={() => setActiveTab('reviews')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1rem', background: activeTab === 'reviews' ? 'var(--primary)' : 'transparent', color: activeTab === 'reviews' ? 'white' : 'inherit', border: 'none', borderRadius: '8px', cursor: 'pointer', textAlign: 'left' }}
+        >
+          <Star size={18} /> Reviews
+        </button>
+
         {/* Group 3: Sales & Orders */}
         <div style={{ marginTop: '1rem', padding: '0 1rem' }}>
           <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sales & Orders</span>
@@ -285,6 +293,7 @@ const AdminDashboard: React.FC = () => {
         {activeTab === 'refunds' && <AdminRefunds />}
         {activeTab === 'reports' && <AdminReports />}
         {activeTab === 'promotions' && <AdminPromotions />}
+        {activeTab === 'reviews' && <AdminReviews />}
 
         {activeTab === 'bulk-upload' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>

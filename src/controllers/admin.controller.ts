@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { User, Product, Order, OrderItem } from '@prisma/client';
-import puppeteer from 'puppeteer';
 import prisma from '../prisma';
 import { parse } from 'csv-parse/sync';
 import { publishRefundStatus } from '../utils/amqp';
@@ -755,6 +754,8 @@ export const downloadPdfReport = async (req: Request, res: Response, next: NextF
     `;
 
     // Generate PDF using Puppeteer
+    const puppeteerModule = await Function('return import("puppeteer")')();
+    const puppeteer = puppeteerModule.default || puppeteerModule;
     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'load' });

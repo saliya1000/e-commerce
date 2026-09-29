@@ -59,7 +59,7 @@ export const getReviews = async (req: Request, res: Response, next: NextFunction
   try {
     const { productId } = req.params as { productId: string };
     const reviews = await prisma.review.findMany({
-      where: { productId },
+      where: { productId, status: 'approved' },
       include: { user: { select: { firstName: true, lastName: true } } },
       orderBy: [
         { helpfulVotes: 'desc' },
