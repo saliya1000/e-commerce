@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { ArrowLeft, Package, CheckCircle, Truck, XCircle, Star, X } from 'lucide-react';
+import { ArrowLeft, Package, CheckCircle, Truck, XCircle, Star, X, Loader } from 'lucide-react';
 
 const OrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -103,8 +103,9 @@ const OrderDetail: React.FC = () => {
   const getStatusStep = (status: string) => {
     if (status === 'Pending Payment') return 0;
     if (status === 'Payment Successful') return 1;
-    if (status === 'Shipped') return 2;
-    if (status === 'Delivered') return 3;
+    if (status === 'Processing') return 2;
+    if (status === 'Shipped') return 3;
+    if (status === 'Delivered') return 4;
     return -1; // Cancelled/Refunded
   };
 
@@ -164,13 +165,14 @@ const OrderDetail: React.FC = () => {
           ) : (
             <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', margin: '0 2rem' }}>
               <div style={{ position: 'absolute', top: '24px', left: '0', right: '0', height: '4px', background: 'var(--border)', zIndex: 0 }}></div>
-              <div style={{ position: 'absolute', top: '24px', left: '0', width: `${Math.max(0, currentStep * 33.33)}%`, height: '4px', background: 'var(--success)', zIndex: 1, transition: 'width 0.5s' }}></div>
+              <div style={{ position: 'absolute', top: '24px', left: '0', width: `${Math.max(0, currentStep * 25)}%`, height: '4px', background: 'var(--success)', zIndex: 1, transition: 'width 0.5s' }}></div>
               
               {[
                 { label: 'Order Placed', icon: Package, step: 0 },
                 { label: 'Payment Confirmed', icon: CheckCircle, step: 1 },
-                { label: 'Shipped', icon: Truck, step: 2 },
-                { label: 'Delivered', icon: CheckCircle, step: 3 }
+                { label: 'Processing', icon: Loader, step: 2 },
+                { label: 'Shipped', icon: Truck, step: 3 },
+                { label: 'Delivered', icon: CheckCircle, step: 4 }
               ].map((item, index) => {
                 const active = currentStep >= item.step;
                 const Icon = item.icon;
@@ -203,7 +205,7 @@ const OrderDetail: React.FC = () => {
                     <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent)' }}>
                       ${(Number(item.price) * item.quantity).toFixed(2)}
                     </div>
-                    {currentStep === 3 && reviewedItems[item.productId] === false && (
+                    {currentStep === 4 && reviewedItems[item.productId] === false && (
                       <button 
                         onClick={() => setReviewingProduct(item)}
                         className="btn btn-outline" 
@@ -212,7 +214,7 @@ const OrderDetail: React.FC = () => {
                         Write Review
                       </button>
                     )}
-                    {currentStep === 3 && reviewedItems[item.productId] === true && (
+                    {currentStep === 4 && reviewedItems[item.productId] === true && (
                       <span style={{ fontSize: '0.85rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <CheckCircle size={14} /> Reviewed
                       </span>

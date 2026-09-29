@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, ArrowRight, Truck, CheckCircle, XCircle, ChevronLeft } from 'lucide-react';
+import { Package, Search, ArrowRight, Truck, CheckCircle, XCircle, ChevronLeft, Loader } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 
@@ -57,8 +57,9 @@ const TrackOrder: React.FC = () => {
   const getStatusStep = (status: string) => {
     if (status === 'Pending Payment') return 0;
     if (status === 'Payment Successful') return 1;
-    if (status === 'Shipped') return 2;
-    if (status === 'Delivered') return 3;
+    if (status === 'Processing') return 2;
+    if (status === 'Shipped') return 3;
+    if (status === 'Delivered') return 4;
     return -1; // Cancelled/Refunded
   };
 
@@ -162,14 +163,15 @@ const TrackOrder: React.FC = () => {
               ) : (
                 <div style={{ position: 'relative', margin: '0 2rem' }}>
                   <div style={{ position: 'absolute', top: '24px', left: '0', right: '0', height: '6px', background: 'var(--border-color)', borderRadius: '3px', zIndex: 0 }}></div>
-                  <div style={{ position: 'absolute', top: '24px', left: '0', width: `${Math.max(0, getStatusStep(order.status) * 33.33)}%`, height: '6px', background: 'var(--primary)', borderRadius: '3px', zIndex: 1, transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}></div>
+                  <div style={{ position: 'absolute', top: '24px', left: '0', width: `${Math.max(0, getStatusStep(order.status) * 25)}%`, height: '6px', background: 'var(--primary)', borderRadius: '3px', zIndex: 1, transition: 'width 0.8s cubic-bezier(0.4, 0, 0.2, 1)' }}></div>
                   
                   <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 2 }}>
                     {[
                       { label: 'Order Placed', icon: Package, step: 0 },
                       { label: 'Payment Confirmed', icon: CheckCircle, step: 1 },
-                      { label: 'Shipped', icon: Truck, step: 2 },
-                      { label: 'Delivered', icon: CheckCircle, step: 3 }
+                      { label: 'Processing', icon: Loader, step: 2 },
+                      { label: 'Shipped', icon: Truck, step: 3 },
+                      { label: 'Delivered', icon: CheckCircle, step: 4 }
                     ].map((item, index) => {
                       const active = getStatusStep(order.status) >= item.step;
                       const Icon = item.icon;

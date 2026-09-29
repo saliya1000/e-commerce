@@ -536,12 +536,25 @@ export const deleteDeliveryOption = async (req: Request, res: Response, next: Ne
 };
 
 // Review Moderation
+import { decrypt } from '../utils/encryption';
+
 export const getReviews = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.query; // 'pending', 'approved', 'rejected'
     const where = status ? { status: String(status) } : {};
     const reviews = await prisma.review.findMany({ where, include: { product: true, user: true } });
-    res.json(reviews);
+    
+    // Decrypt user data
+    const decryptedReviews = reviews.map(r => {
+      if (r.user) {
+        if (r.user.firstName) r.user.firstName = decrypt(r.user.firstName);
+        if (r.user.lastName) r.user.lastName = decrypt(r.user.lastName);
+        if (r.user.email) r.user.email = decrypt(r.user.email);
+      }
+      return r;
+    });
+
+    res.json(decryptedReviews);
   } catch (error) { next(error); }
 };
 

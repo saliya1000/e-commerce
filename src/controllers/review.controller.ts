@@ -55,6 +55,8 @@ export const addReview = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+import { decrypt } from '../utils/encryption';
+
 export const getReviews = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId } = req.params as { productId: string };
@@ -66,7 +68,15 @@ export const getReviews = async (req: Request, res: Response, next: NextFunction
         { createdAt: 'desc' }
       ]
     });
-    res.json(reviews);
+    const decryptedReviews = reviews.map(r => {
+      if (r.user) {
+        if (r.user.firstName) r.user.firstName = decrypt(r.user.firstName);
+        if (r.user.lastName) r.user.lastName = decrypt(r.user.lastName);
+      }
+      return r;
+    });
+
+    res.json(decryptedReviews);
   } catch (error) {
     next(error);
   }

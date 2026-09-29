@@ -193,3 +193,56 @@ a:hover {
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Horizontal Scroll Container */
+.horizontal-scroll-container {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 2rem;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+}
+
+.horizontal-scroll-container::-webkit-scrollbar-thumb {
+  background-color: var(--primary);
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .horizontal-scroll-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Masonry Grid */
+.masonry-grid {
+  column-count: 3;
+  column-gap: 1.5rem;
+}
+@media (max-width: 1024px) {
+  .masonry-grid {
+    column-count: 2;
+  }
+}
+@media (max-width: 640px) {
+  .masonry-grid {
+    column-count: 1;
+  }
+}
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 2rem;
+  display: inline-block;
+  width: 100%;
+}
+

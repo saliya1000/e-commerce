@@ -29,7 +29,7 @@ export const checkoutSchema = Joi.object({
 });
 
 export const trackOrderSchema = Joi.object({
-  orderId: Joi.string().uuid().required(),
+  orderId: Joi.string().required(),
   email: Joi.string().email().required()
 });
 
@@ -567,26 +567,50 @@ export const trackOrder = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Order ID and email are required' });
     }
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
-      include: {
-        items: {
-          include: {
-            product: true
+    const tokens = orderId.trim().split(/\\s+/);
+    const lastToken = tokens[tokens.length - 1];
+    const normalizedOrderId = lastToken.replace(/^#/, '').toLowerCase();
+    
+    let order = null;
+
+    if (normalizedOrderId.length === 36) {
+      order = await prisma.order.findUnique({
+        where: { id: normalizedOrderId },
+        include: {
+          items: { include: { product: { include: { images: true } } } },
+          user: true,
+        }
+      });
+    } else {
+      // Fallback for short Order IDs (e.g., CEE252C9)
+      const rawOrders = await prisma.$queryRaw<Array<{id: string}>>`
+        SELECT id FROM "Order" WHERE CAST(id AS TEXT) LIKE ${normalizedOrderId + '%'} LIMIT 10
+      `;
+      for (const row of rawOrders) {
+        const potentialOrder = await prisma.order.findUnique({
+          where: { id: row.id },
+          include: { items: { include: { product: { include: { images: true } } } }, user: true }
+        });
+        
+        if (potentialOrder) {
+          const shippingAddress: any = potentialOrder.shippingAddress || {};
+          const orderEmail = potentialOrder.user?.email || shippingAddress.email;
+          if (orderEmail && orderEmail.toLowerCase() === email.trim().toLowerCase()) {
+            order = potentialOrder;
+            break;
           }
-        },
-        user: true,
+        }
       }
-    });
+    }
 
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' });
+      return res.status(404).json({ message: 'Order not found or email does not match' });
     }
 
     const shippingAddress: any = order.shippingAddress || {};
     const orderEmail = order.user?.email || shippingAddress.email;
 
-    if (!orderEmail || orderEmail.toLowerCase() !== email.toLowerCase()) {
+    if (!orderEmail || orderEmail.toLowerCase() !== email.trim().toLowerCase()) {
       return res.status(403).json({ message: 'Order not found or email does not match' });
     }
 

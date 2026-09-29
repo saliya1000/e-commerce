@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Star, Package, ThumbsUp } from 'lucide-react';
+import { Star, Package, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,8 @@ const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [product, setProduct] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [sortType, setSortType] = useState<'recommended' | 'recent'>('recommended');
+  const [visibleReviews, setVisibleReviews] = useState(5);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,14 +52,18 @@ const ProductDetail: React.FC = () => {
     }
   }, [id, isAuthenticated]);
 
-
-
-  const handleVote = async (reviewId: string) => {
+  const handleVoteHelpful = async (reviewId: string) => {
+    if (!isAuthenticated) {
+      alert('Please login to vote.');
+      return;
+    }
     try {
       await api.post(`/reviews/${reviewId}/vote`);
-      setReviews(reviews.map(r => r.id === reviewId ? { ...r, helpfulVotes: (r.helpfulVotes || 0) + 1 } : r));
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to vote');
+      setReviews(reviews.map(r => 
+        r.id === reviewId ? { ...r, helpfulVotes: (r.helpfulVotes || 0) + 1 } : r
+      ));
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Failed to vote');
     }
   };
 
@@ -118,7 +124,7 @@ const ProductDetail: React.FC = () => {
                   <Star key={star} size={20} fill={star <= Number(product.rating) ? '#F59E0B' : 'transparent'} color={star <= Number(product.rating) ? '#F59E0B' : 'var(--border-color)'} />
                 ))}
               </div>
-              <span className="text-muted font-bold ml-2">({product.reviewCount} reviews)</span>
+              <span className="text-muted font-bold ml-2">{Number(product.rating).toFixed(1)} ({product.reviewCount} reviews)</span>
             </div>
           </div>
           
@@ -170,94 +176,112 @@ const ProductDetail: React.FC = () => {
       )}
 
       {/* Reviews Section */}
-      <section className="py-12" style={{ borderTop: '1px solid var(--border-color)' }}>
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="font-extrabold" style={{ fontSize: '2rem' }}>Customer Reviews</h2>
+      <section className="py-12" style={{ borderTop: '1px solid var(--border-color)', marginTop: '2rem' }}>
+        {/* Top Header */}
+        <div className="flex justify-between items-center pb-4 mb-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div className="flex items-center gap-3">
+            <span className="font-extrabold" style={{ fontSize: '1.25rem' }}>{product.reviewCount} reviews</span>
+            <span className="text-muted">|</span>
+            <span className="font-extrabold text-lg">{product.rating ? Number(product.rating).toFixed(1) : '0.0'}</span>
+            <div className="flex">
+              {[1, 2, 3, 4, 5].map(star => (
+                <Star key={star} size={18} fill={star <= Number(product.rating) ? 'var(--text-main)' : 'transparent'} color="var(--text-main)" />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-md" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#15803d', fontSize: '0.875rem', fontWeight: 600 }}>
+            <ShieldCheck size={16} /> All reviews are from verified purchases
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex gap-3 mb-8 items-center flex-wrap">
+          <button 
+            onClick={() => setSortType('recommended')}
+            className={`btn btn-outline px-4 py-1.5 rounded-full text-sm flex items-center gap-1 ${sortType === 'recommended' ? 'font-semibold text-main' : 'text-muted'}`} 
+            style={{ border: sortType === 'recommended' ? '1px solid var(--text-main)' : '1px solid var(--border-color)' }}
+          >
+            Recommended
+          </button>
+          <button 
+            onClick={() => setSortType('recent')}
+            className={`btn btn-outline px-4 py-1.5 rounded-full text-sm flex items-center gap-1 ${sortType === 'recent' ? 'font-semibold text-main' : 'text-muted'}`} 
+            style={{ border: sortType === 'recent' ? '1px solid var(--text-main)' : '1px solid var(--border-color)' }}
+          >
+            Most recent
+          </button>
         </div>
         
-        <div className="grid grid-cols-3 md:grid-cols-1 gap-12 flex-col-mobile">
-          {/* Left Column: Rating Breakdown & Form */}
-          <div className="col-span-1" style={{ flex: '1' }}>
-            <div className="glass-panel mb-8">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="font-extrabold text-primary" style={{ fontSize: '3rem', lineHeight: 1 }}>
-                  {product.rating ? Number(product.rating).toFixed(1) : '0.0'}
-                </div>
-                <div>
-                  <div className="flex mb-1">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Star key={star} size={20} fill={star <= Number(product.rating) ? '#F59E0B' : 'transparent'} color={star <= Number(product.rating) ? '#F59E0B' : 'var(--border-color)'} />
-                    ))}
-                  </div>
-                  <div className="text-muted font-bold text-sm">{product.reviewCount} total reviews</div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-3">
-                {[5, 4, 3, 2, 1].map(star => {
-                  const count = reviews.filter(r => r.rating === star).length;
-                  const percentage = reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0;
-                  return (
-                    <div key={star} className="flex items-center gap-3">
-                      <div className="text-muted font-bold" style={{ width: '45px' }}>{star} star</div>
-                      <div style={{ flex: 1, height: '8px', background: 'var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ width: `${percentage}%`, height: '100%', background: '#F59E0B', borderRadius: '4px' }}></div>
-                      </div>
-                      <div className="text-muted text-sm text-right" style={{ width: '35px' }}>{percentage}%</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            </div>
-
-          {/* Right Column: Review List */}
-          <div className="col-span-2" style={{ flex: '2', display: 'flex', gap: '1.5rem', overflowX: 'auto', paddingBottom: '1rem', scrollSnapType: 'x mandatory' }}>
-            {reviews.length === 0 ? (
-              <div className="glass-panel text-center py-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <h3 className="font-bold text-muted mb-2">No reviews yet</h3>
-                <p className="text-muted">This product doesn't have any reviews.</p>
-              </div>
-            ) : (
-              reviews.map(review => (
-                <div key={review.id} className="glass-panel transition-transform hover:shadow-md" style={{ padding: '1.75rem', minWidth: '350px', flex: '0 0 auto', scrollSnapAlign: 'start', display: 'flex', flexDirection: 'column' }}>
-                  <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-3">
-                      <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem' }}>
-                        {review.user?.firstName?.[0]}{review.user?.lastName?.[0]}
+        {reviews.length === 0 ? (
+          <div className="text-center py-12" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <h3 className="font-bold text-muted mb-2">No reviews yet</h3>
+            <p className="text-muted">This product doesn't have any reviews.</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-6">
+              {[...reviews]
+                .sort((a, b) => {
+                  if (sortType === 'recent') {
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                  }
+                  return (b.helpfulVotes || 0) - (a.helpfulVotes || 0);
+                })
+                .slice(0, visibleReviews)
+                .map(review => (
+                <div key={review.id} className="pb-6" style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                  {/* Review Header */}
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-2">
+                      <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#E91E63', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1rem' }}>
+                        {review.user?.firstName?.[0] || 'A'}
                       </div>
                       <div>
-                        <span className="font-bold block" style={{ fontSize: '1.1rem' }}>{review.user?.firstName} {review.user?.lastName}</span>
-                        <span className="text-primary font-bold text-sm" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                          Verified Buyer
-                        </span>
+                        <span className="font-bold text-sm text-main">{review.user?.firstName} {review.user?.lastName?.[0]}.</span>
+                        <span className="text-muted text-sm mx-1">on {new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
-                    <span className="text-muted" style={{ fontSize: '0.9rem' }}>{new Date(review.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                   </div>
-                  <div className="flex mb-4">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <Star key={star} size={16} fill={star <= review.rating ? '#F59E0B' : 'transparent'} color={star <= review.rating ? '#F59E0B' : 'var(--border-color)'} />
-                    ))}
-                  </div>
-                  {review.comment && <p className="text-main" style={{ lineHeight: 1.6, marginBottom: '1.5rem', fontSize: '1.05rem', flex: 1 }}>{review.comment}</p>}
                   
-                  <div className="flex items-center mt-auto">
+                  {/* Rating & Tag */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Star key={star} size={16} fill={star <= review.rating ? 'var(--text-main)' : 'transparent'} color="var(--text-main)" />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Comment */}
+                  {review.comment && <p className="text-main mb-3" style={{ lineHeight: 1.6, fontSize: '1rem' }}>{review.comment}</p>}
+
+                  {/* Helpful Button */}
+                  <div className="flex items-center gap-2">
                     <button 
-                      onClick={() => handleVote(review.id)}
-                      className="flex items-center gap-2 text-muted transition-transform hover:scale-105"
-                      style={{ background: 'var(--bg-muted)', border: 'none', padding: '0.5rem 1rem', borderRadius: '9999px', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 600 }}
+                      onClick={() => handleVoteHelpful(review.id)}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded border text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" 
+                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-muted)' }}
                     >
-                      <ThumbsUp size={16} /> Helpful ({review.helpfulVotes || 0})
+                      👍 Helpful ({review.helpfulVotes || 0})
                     </button>
                   </div>
                 </div>
-              ))
+              ))}
+            </div>
+            
+            {visibleReviews < reviews.length && (
+              <div className="flex justify-center mt-8">
+                <button 
+                  onClick={() => setVisibleReviews(prev => prev + 5)}
+                  className="btn btn-outline" 
+                  style={{ padding: '0.5rem 2rem', borderRadius: '9999px', fontWeight: 'bold', border: '1px solid var(--text-main)' }}
+                >
+                  See all reviews
+                </button>
+              </div>
             )}
-          </div>
-        </div>
+          </>
+        )}
       </section>
     </main>
   );
