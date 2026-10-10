@@ -1,118 +1,128 @@
-# I Love Shopping E-Commerce Platform
+# HappyPets Admin Dashboard
 
-Welcome to the **I Love Shopping** e-commerce platform! This project is a full-stack, production-ready web application built with modern web technologies, focusing on exceptional user experience, top-tier security, and optimal performance.
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-3982CE?style=for-the-badge&logo=Prisma&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
-## Project Overview
-The platform offers a seamless shopping experience for premium pet supplies. Key features include:
-- **Responsive & Accessible UI**: Adheres to WCAG 2.1 Level A criteria and features a vibrant, glassmorphic design that looks stunning on desktop and mobile.
-- **Robust Security**: Enforces strict Content Security Policy (CSP), TLS, token-bucket rate limiting, 2FA (TOTP), and Principle of Least Privilege for admin accounts.
-- **Optimized Search & SEO**: High-performance PostgreSQL full-text search combined with dynamically injected meta tags and semantic HTML to rank higher on search engines.
+A powerful, high-performance E-commerce Admin Dashboard tailored for managing premium pet supplies. Designed for scalability and exceptional user experience, the HappyPets dashboard provides administrators with robust tools for order management, bulk product operations, and dynamic reporting.
 
 ---
 
-## Entity Relationship Diagram
-The backend relies on a normalized PostgreSQL database managed by Prisma. Below is the simplified core entity relationship diagram:
+## Table of Contents
 
-```mermaid
-erDiagram
-    USER ||--o{ ORDER : places
-    USER ||--o{ REVIEW : writes
-    USER ||--o| CART : has
-    USER ||--o{ ADDRESS : manages
-    USER ||--o{ PAYMENT_METHOD : saves
-    USER ||--o{ AUDIT_LOG : tracks
-    CATEGORY ||--o{ PRODUCT : contains
-    CATEGORY ||--o{ CATEGORY : subcategories
-    PRODUCT ||--o{ PRODUCT_IMAGE : has
-    PRODUCT ||--o{ PRODUCT_ATTRIBUTE : has
-    PRODUCT ||--o{ REVIEW : receives
-    PRODUCT ||--o{ CART_ITEM : included_in
-    CART ||--o{ CART_ITEM : holds
-    ORDER ||--o{ ORDER_ITEM : contains
-    ORDER ||--o{ PAYMENT : has
-    ORDER ||--o{ REFUND : has
-    PRODUCT ||--o{ ORDER_ITEM : included_in
+1. [Project Overview & Features](#project-overview--features)
+2. [Security & Accessibility](#security--accessibility)
+3. [Architecture & ERD](#architecture--erd)
+4. [Performance Analysis](#performance-analysis)
+5. [Getting Started](#getting-started)
+6. [Usage Guide](#usage-guide)
+
+---
+
+## Project Overview & Features
+
+HappyPets Admin Dashboard streamlines e-commerce operations with a focus on speed and productivity:
+
+- **Structured Admin Sidebar**: Intuitive navigation layout ensuring quick access to inventory, orders, and customer management.
+- **Custom Date PDF Reporting**: Dynamically generate detailed sales and inventory reports in PDF format based on custom date ranges.
+- **Bulk Product Upload**: Quickly populate the catalog using CSV bulk import functionality, saving hours of manual data entry.
+- **Dual-Status Order Management**: Advanced order tracking that distinctly separates **fulfillment status** (Processing, Shipped, Delivered) from **payment status** (Pending, Paid, Failed) for granular operational control.
+
+---
+
+## Security & Accessibility
+
+### Security Protocols
+- **Data Encryption**: All Personally Identifiable Information (PII) and passwords are securely encrypted using industry-standard hashing algorithms (bcrypt).
+- **Strict Role-Based Admin Promotion**: Implements the Principle of Least Privilege. Standard admins cannot elevate privileges; only a designated `superadmin` can promote or demote other users.
+- **Audit Logging**: Critical administrative actions are tracked for security and compliance.
+
+### Frontend Accessibility
+- **Responsive Design**: Flawlessly adapts to any screen size, ranging from **320px mobile devices up to 1440px ultrawide displays**.
+- **Visual Scaling**: Fully supports **200% zoom** without breaking layouts or truncating text, ensuring WCAG 2.1 Level A compliance.
+- **Keyboard Navigation**: Distinct `:focus-visible` states and semantic HTML structures for complete screen-reader compatibility.
+
+---
+
+## Architecture & ERD
+
+The backend is built on a normalized PostgreSQL database managed by Prisma. It separates domains into clear models to handle users, products, orders, and carts efficiently.
+
+![ERD](./docs/erd.png)
+
+*The database structure maps out a clear relation where Users manage Orders, Cart, and Reviews, while Products are intrinsically linked to Categories, Attributes, and Cart/Order Items. Dual statuses on the Order entity manage the complex e-commerce lifecycle.*
+
+---
+
+## Performance Analysis
+
+We engineered the application to handle high traffic and large datasets seamlessly:
+
+- **Image Optimization**: Uploaded images are compressed, resized, and converted to modern web formats using Sharp before storage.
+- **Server-Side Pagination**: API endpoints utilize strict server-side pagination (limit/offset) to ensure fast response times, even with catalogs containing thousands of products.
+- **Full-Text Search**: Replaced standard `LIKE` operators with optimized database-level full-text search indexes (`tsvector`), drastically reducing query execution times on large tables.
+
+---
+
+## Getting Started
+
+Follow these step-by-step instructions to set up your local development environment. 
+
+**1. Clone the repository**
+```bash
+git clone https://github.com/your-username/happypets-admin.git
+cd happypets-admin
 ```
 
----
+**2. Install dependencies**
+```bash
+# Install backend dependencies
+npm install
 
-## Performance Analysis Report
+# Install frontend dependencies
+cd frontend && npm install && cd ..
+```
 
-We took a multi-layered approach to ensure lightning-fast response times:
+**3. Environment Setup**
+Create your `.env` file from the provided example.
+```bash
+cp .env.example .env
+```
+*Ensure you update the `DATABASE_URL` in the `.env` file to point to your local PostgreSQL instance. If using Docker, you can optionally run `docker-compose up -d db` to spin up the database.*
 
-1. **Database Search Optimization**
-   Instead of using slow `LIKE` wildcard searches which perform full table scans, the search functionality uses **PostgreSQL's Full-Text Search vectors (`tsvector`)** via Prisma's `search` feature. This provides a balance of highly accurate natural language search and drastically reduced response times.
+**4. Database Migration & Seeding**
+Run Prisma migrations to set up your schema and execute the seed script to create the first master admin account.
+```bash
+npx prisma migrate dev
+npx prisma db seed
+```
+*(The seed script creates an initial master admin account to access the dashboard).*
 
-2. **CDN Strategy for Content Delivery**
-   To optimize the delivery of static assets and user-uploaded images in a production environment:
-   - **Static Assets (JS/CSS)**: Configured to be aggressively cached and served via a global CDN (such as Cloudflare) positioned in front of the application.
-   - **User Uploads / Images**: Instead of serving uploaded files directly from the Node container's filesystem, production setups should sync `/uploads` to an **AWS S3 Bucket** distributed by **Amazon CloudFront**. This offloads heavy image serving from the API and ensures images load instantly from edge locations worldwide.
+**5. Start the Development Servers**
+Launch both the backend and frontend concurrently.
+```bash
+# In the root directory, start the backend API:
+npm run dev
 
-3. **Frontend Architecture**
-   Built with Vite and React, the frontend leverages aggressive code-splitting. Assets are minified and served via highly-performant Nginx containers running on HTTP/2 (TLS).
-
----
-
-## Prerequisites
-- **Docker** and **Docker Compose**
-- **Stripe CLI** (Required for payment simulation)
-
-## Setup and Installation
-
-Containerization via Docker makes running this project incredibly simple. 
-You do not need to install Node.js, PostgreSQL, or RabbitMQ locally—everything is bundled.
-
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd i-love-shopping3
-   ```
-
-2. **Start the environment:**
-   Use the provided quickstart script to build and start the containers.
-   ```bash
-   chmod +x start.sh
-   ./start.sh
-   ```
-   *(Alternatively, run `docker-compose up --build -d`)*
-
-3. **Verify the services:**
-   - **Frontend**: https://localhost
-   - **Backend API**: http://localhost:3000
-   - **Prisma Studio (DB Admin)**: http://localhost:5555
-   - **MailHog (Email testing)**: http://localhost:8025
+# Open a new terminal, navigate to the frontend, and start the Vite server:
+cd frontend
+npm run dev
+```
 
 ---
 
 ## Usage Guide
 
-### Simulating Payments
-The checkout process integrates securely with Stripe. To complete an order and simulate a successful payment locally, use the Stripe CLI:
+### Dual-Status Order Filtering
+The dashboard's **Orders** view features a dual-status filtering system. 
+1. Navigate to the **Orders** tab via the sidebar.
+2. Use the dropdown filters at the top to filter by **Payment Status** (e.g., *Paid*) independently of **Fulfillment Status** (e.g., *Processing*). 
+3. This allows you to quickly identify orders that are paid but waiting to be shipped.
 
-1. **Login to Stripe CLI** (Ensure you have a Stripe account):
-   ```bash
-   stripe login
-   ```
-2. **Listen for webhooks** and forward them to your local API container:
-   ```bash
-   stripe listen --forward-to http://localhost:3000/api/payments/webhook
-   ```
-3. Place an order on `https://localhost` using the mock Stripe test card `4242 4242 4242 4242`. The webhook will be triggered, completing the order!
-
-### Accessing Admin Tools
-- **Prisma Studio**: Visit `http://localhost:5555` to view and modify raw database records.
-- **Admin Dashboard**: Login to the main site with a user assigned the `admin` or `superadmin` role to access administrative settings. Actions performed by admins are tracked in the `AuditLog` table for security and compliance.
-
----
-
-## Bonus Features Implemented
-
-1. **Accessibility (WCAG 2.1 Level A)**
-   - Strict adherence to semantic HTML (`<main>`, properly nested headings).
-   - Global `aria-labels`, `htmlFor` mappings, and visually distinct `:focus-visible` rings for keyboard navigation.
-   - Relative `rem` typography, ensuring layouts remain flawless at 200% zoom.
-2. **Advanced Security (Principle of Least Privilege)**
-   - Implemented an `AuditLogger` middleware capturing critical administrative actions.
-   - Constrained role modifications: Standard admins cannot elevate privileges; only a designated `superadmin` can.
-3. **Automated TLS & Reverse Proxy**
-   - Self-signed TLS certificates are provided for secure `https` transmission, with Nginx proxying traffic securely between the React frontend and Node backend. 
+### Generating PDF Reports
+1. Navigate to the **Reports** section in the admin sidebar.
+2. Select your desired start and end dates using the date picker.
+3. Choose the report type (e.g., *Sales Summary* or *Inventory Levels*).
+4. Click **Export to PDF**. The server will dynamically generate a clean, formatted report and trigger a download to your local machine.
