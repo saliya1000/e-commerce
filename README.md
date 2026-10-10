@@ -50,7 +50,26 @@ HappyPets Admin Dashboard streamlines e-commerce operations with a focus on spee
 
 The backend is built on a normalized PostgreSQL database managed by Prisma. It separates domains into clear models to handle users, products, orders, and carts efficiently.
 
-![ERD](./docs/erd.png)
+```mermaid
+erDiagram
+    USER ||--o{ ORDER : places
+    USER ||--o{ REVIEW : writes
+    USER ||--o| CART : has
+    USER ||--o{ ADDRESS : manages
+    USER ||--o{ PAYMENT_METHOD : saves
+    USER ||--o{ AUDIT_LOG : tracks
+    CATEGORY ||--o{ PRODUCT : contains
+    CATEGORY ||--o{ CATEGORY : subcategories
+    PRODUCT ||--o{ PRODUCT_IMAGE : has
+    PRODUCT ||--o{ PRODUCT_ATTRIBUTE : has
+    PRODUCT ||--o{ REVIEW : receives
+    PRODUCT ||--o{ CART_ITEM : included_in
+    CART ||--o{ CART_ITEM : holds
+    ORDER ||--o{ ORDER_ITEM : contains
+    ORDER ||--o{ PAYMENT : has
+    ORDER ||--o{ REFUND : has
+    PRODUCT ||--o{ ORDER_ITEM : included_in
+```
 
 *The database structure maps out a clear relation where Users manage Orders, Cart, and Reviews, while Products are intrinsically linked to Categories, Attributes, and Cart/Order Items. Dual statuses on the Order entity manage the complex e-commerce lifecycle.*
 
@@ -68,7 +87,7 @@ We engineered the application to handle high traffic and large datasets seamless
 
 ## Getting Started
 
-Follow these step-by-step instructions to set up your local development environment. 
+You can run this project using Docker (recommended) or set it up manually for local development.
 
 **1. Clone the repository**
 ```bash
@@ -76,39 +95,58 @@ git clone https://github.com/your-username/happypets-admin.git
 cd happypets-admin
 ```
 
-**2. Install dependencies**
-```bash
-# Install backend dependencies
-npm install
-
-# Install frontend dependencies
-cd frontend && npm install && cd ..
-```
-
-**3. Environment Setup**
+**2. Environment Setup**
 Create your `.env` file from the provided example.
 ```bash
 cp .env.example .env
 ```
-*Ensure you update the `DATABASE_URL` in the `.env` file to point to your local PostgreSQL instance. If using Docker, you can optionally run `docker-compose up -d db` to spin up the database.*
 
-**4. Database Migration & Seeding**
-Run Prisma migrations to set up your schema and execute the seed script to create the first master admin account.
+### Option A: Run with Docker (Recommended)
+Containerization makes running this project incredibly simple. Everything is bundled together (PostgreSQL, RabbitMQ, Mailhog, Backend, Frontend, and Prisma Studio).
+
+```bash
+chmod +x start.sh
+./start.sh
+# Alternatively: docker-compose up --build -d
+```
+
+Once running, access the services:
+- **Frontend**: `https://localhost`
+- **Backend API**: `http://localhost:3000`
+- **Prisma Studio**: `http://localhost:5555`
+- **MailHog**: `http://localhost:8025`
+
+### Option B: Local Development Setup
+If you prefer running the servers natively:
+
+**1. Install dependencies**
+```bash
+npm install
+cd frontend && npm install && cd ..
+```
+
+**2. Start the Database & Message Broker**
+Spin up PostgreSQL and RabbitMQ using Docker:
+```bash
+docker-compose up -d db rabbitmq mailhog
+```
+*Ensure your `DATABASE_URL` in `.env` is pointing to `localhost:5433` (the mapped port).*
+
+**3. Database Migration & Seeding**
 ```bash
 npx prisma migrate dev
 npx prisma db seed
 ```
-*(The seed script creates an initial master admin account to access the dashboard).*
+*(The seed script creates the initial master admin account `admin@example.com`).*
 
-**5. Start the Development Servers**
-Launch both the backend and frontend concurrently.
+**4. Start the Development Servers**
 ```bash
-# In the root directory, start the backend API:
-npm run dev
-
-# Open a new terminal, navigate to the frontend, and start the Vite server:
+npm run dev # Starts backend
+```
+Open a new terminal:
+```bash
 cd frontend
-npm run dev
+npm run dev # Starts frontend
 ```
 
 ---
