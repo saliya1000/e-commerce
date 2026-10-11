@@ -42,7 +42,8 @@ export const createCategory = async (req: Request, res: Response, next: NextFunc
   try {
     const { name, description, parentId } = req.body;
     const category = await prisma.category.create({
-      data: { name, description, parentId }
+      data: { name, description, parentId: parentId || null },
+      include: { parent: true, children: true }
     });
     res.status(201).json(category);
   } catch (error) {
@@ -53,7 +54,21 @@ export const createCategory = async (req: Request, res: Response, next: NextFunc
 export const getCategories = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const categories = await prisma.category.findMany({
-      include: { children: true }
+      include: {
+        children: {
+          include: {
+            parent: { select: { id: true, name: true } },
+            _count: { select: { products: true } }
+          }
+        },
+        parent: {
+          select: { id: true, name: true }
+        },
+        _count: {
+          select: { products: true, children: true }
+        }
+      },
+      orderBy: { name: 'asc' }
     });
     res.json(categories);
   } catch (error) {

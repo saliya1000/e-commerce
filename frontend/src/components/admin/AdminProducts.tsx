@@ -205,10 +205,61 @@ export const AdminProducts: React.FC = () => {
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Category *</label>
-                <select className="form-input" value={formData.categoryId} onChange={e => setFormData({...formData, categoryId: e.target.value})} required>
+                <select 
+                  className="form-input" 
+                  value={formData.categoryId} 
+                  onChange={e => setFormData({...formData, categoryId: e.target.value})} 
+                  required
+                >
                   <option value="">Select Category</option>
-                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {/* Top-Level Categories with their subcategories grouped */}
+                  {categories.filter(c => !c.parentId).map(parent => {
+                    const subs = categories.filter(sub => sub.parentId === parent.id);
+                    return (
+                      <optgroup key={parent.id} label={`📁 ${parent.name} (Parent Category)`}>
+                        <option value={parent.id}>
+                          {parent.name} (Parent Category)
+                        </option>
+                        {subs.map(sub => (
+                          <option key={sub.id} value={sub.id}>
+                            &nbsp;&nbsp;&nbsp;&nbsp;↳ {parent.name} &gt; {sub.name} (Subcategory)
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                  {/* Any orphaned subcategories whose parent is not in the list */}
+                  {categories.filter(c => c.parentId && !categories.some(p => p.id === c.parentId)).map(orphan => (
+                    <option key={orphan.id} value={orphan.id}>
+                      ↳ {orphan.name} (Subcategory)
+                    </option>
+                  ))}
                 </select>
+
+                {/* Selected Category Visual Path */}
+                {(() => {
+                  const selectedCat = categories.find(c => c.id === formData.categoryId);
+                  if (!selectedCat) return null;
+                  const parentCat = selectedCat.parent || categories.find(c => c.id === selectedCat.parentId);
+                  return (
+                    <div style={{ marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Assigned as:</span>
+                      {parentCat ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(16, 185, 129, 0.1)', color: '#059669', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                          <span>{parentCat.name}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>&gt;</span>
+                          <strong>{selectedCat.name}</strong>
+                          <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Subcategory)</span>
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(59, 130, 246, 0.1)', color: '#2563EB', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
+                          📁 <strong>{selectedCat.name}</strong>
+                          <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>(Parent Category)</span>
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
               <div style={{ gridColumn: '1 / -1' }}>
                 <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Description *</label>
@@ -358,7 +409,33 @@ export const AdminProducts: React.FC = () => {
                     })()}
                     <div>
                       <strong>{prod.name}</strong>
-                      {!isQuickEdit && <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{prod.brand}</div>}
+                      {!isQuickEdit && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px', flexWrap: 'wrap' }}>
+                          {prod.brand && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{prod.brand}</span>}
+                          {prod.category && (
+                            <span style={{ 
+                              fontSize: '0.72rem', 
+                              padding: '2px 8px', 
+                              borderRadius: '4px', 
+                              background: prod.category.parent ? 'rgba(16, 185, 129, 0.1)' : 'rgba(59, 130, 246, 0.1)', 
+                              color: prod.category.parent ? '#059669' : '#2563EB',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              {prod.category.parent ? (
+                                <>
+                                  <span style={{ opacity: 0.75 }}>{prod.category.parent.name} &gt;</span>
+                                  <span>{prod.category.name}</span>
+                                </>
+                              ) : (
+                                <>📁 {prod.category.name}</>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>

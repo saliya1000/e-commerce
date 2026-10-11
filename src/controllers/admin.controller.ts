@@ -232,7 +232,12 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
     const skip = (Number(page) - 1) * Number(limit);
     query.skip = skip;
     query.take = Number(limit);
-    query.include = { category: true, images: true };
+    query.include = { 
+      category: {
+        include: { parent: true }
+      }, 
+      images: true 
+    };
     query.orderBy = { createdAt: 'desc' };
 
     const [products, total] = await Promise.all([
@@ -473,7 +478,8 @@ export const updateCategory = async (req: Request, res: Response, next: NextFunc
     const { name, description, parentId } = req.body;
     const updated = await prisma.category.update({
       where: { id },
-      data: { name, description, parentId }
+      data: { name, description, parentId: parentId || null },
+      include: { parent: true, children: true }
     });
     res.json(updated);
   } catch (error) { next(error); }
