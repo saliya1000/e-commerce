@@ -4,6 +4,7 @@ import { Search, ShoppingCart, LogOut, Loader2, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import axios from 'axios';
+import { getImageUrl } from '../utils/image';
 
 interface Suggestion {
   id: string;
@@ -159,7 +160,7 @@ const Navbar: React.FC = () => {
                   >
                     <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--bg-muted)', overflow: 'hidden', flexShrink: 0 }}>
                       {s.images?.[0] ? (
-                        <img src={s.images[0].url} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={getImageUrl(s.images[0].thumbnailUrl || s.images[0].url)} alt={s.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.7rem' }}>No img</div>
                       )}
@@ -221,7 +222,7 @@ const Navbar: React.FC = () => {
                       <div key={item.id} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                         <div style={{ width: '40px', height: '40px', background: 'var(--bg-muted)', borderRadius: '8px', overflow: 'hidden' }}>
                           {item.product.images[0] ? (
-                            <img src={item.product.images[0].url} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src={getImageUrl(item.product.images[0].thumbnailUrl || item.product.images[0].url)} alt={item.product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           ) : (
                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.7rem' }}>No img</div>
                           )}

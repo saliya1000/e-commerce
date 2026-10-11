@@ -3,6 +3,8 @@ import { Package, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
 
+import { getImageUrl } from '../utils/image';
+
 interface ProductCardProps {
   product: {
     id: string;
@@ -20,14 +22,21 @@ interface ProductCardProps {
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const { addToCart } = useCart();
   const primaryImageObj = product.images?.find(img => img.isPrimary) || product.images?.[0];
-  const primaryImage = primaryImageObj ? (primaryImageObj.mediumUrl || primaryImageObj.url) : null;
+  const primaryImage = primaryImageObj ? getImageUrl(primaryImageObj.mediumUrl || primaryImageObj.url) : null;
 
   return (
     <div className="product-card glass-panel" style={{ padding: '0', borderRadius: '16px', overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg-card)', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', transition: 'transform 0.2s' }}>
       <Link to={`/products/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
         <div style={{ height: '200px', background: 'var(--bg-muted)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {primaryImage ? (
-            <img src={primaryImage} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img 
+              src={primaryImage} 
+              alt={product.name} 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }} 
+            />
           ) : (
             <Package size={64} color="var(--text-muted)" opacity={0.5} />
           )}

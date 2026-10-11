@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Trash2, Edit2, Plus } from 'lucide-react';
+import { Trash2, Edit2, Plus, Package } from 'lucide-react';
 import { AdminSearch } from './AdminSearch';
 import { AdminPagination } from './AdminPagination';
+import { getImageUrl } from '../../utils/image';
 
 export const AdminProducts: React.FC = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -80,10 +81,6 @@ export const AdminProducts: React.FC = () => {
       if (editingId) {
         await api.put(`/admin/products/${editingId}`, payload);
       } else {
-        await api.post('/admin/products', payload); // wait, createProduct is in /admin/products?
-        // Wait, in admin.routes.ts, createProduct is missing?! Let me double check if it is in product.routes.ts or admin.routes.ts.
-        // I will use /products for POST if it's there. Actually, let's just use POST /products since it's probably unprotected or protected by role.
-        // Checking the code: product.routes.ts has `router.post('/', requireAuth, requireRole('admin'), ...createProduct)`
         await api.post('/products', payload);
       }
       setIsFormOpen(false);
@@ -150,9 +147,9 @@ export const AdminProducts: React.FC = () => {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       const newImage = {
-        url: res.data.url,
-        thumbnailUrl: res.data.thumbnailUrl,
-        mediumUrl: res.data.mediumUrl,
+        url: getImageUrl(res.data.url),
+        thumbnailUrl: getImageUrl(res.data.thumbnailUrl),
+        mediumUrl: getImageUrl(res.data.mediumUrl),
         isPrimary: formData.images.length === 0
       };
       setFormData(prev => ({ ...prev, images: [...prev.images, newImage] }));
@@ -272,16 +269,30 @@ export const AdminProducts: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <h5 style={{ margin: 0, color: 'var(--text-muted)' }}>Product Images (Max 5)</h5>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
-              {formData.images.map((img, i) => (
-                <div key={i} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-muted)' }}>
-                  {(img.thumbnailUrl || img.url) ? <img src={img.thumbnailUrl || img.url} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>No Img</span>}
-                  
-                  <button type="button" onClick={() => removeImage(i)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(255,255,255,0.9)', color: 'var(--error)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    <Trash2 size={14} />
-                  </button>
-                  {img.isPrimary && <span style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'var(--primary)', color: 'white', fontSize: '0.6rem', textAlign: 'center', padding: '2px 0' }}>Primary</span>}
-                </div>
-              ))}
+              {formData.images.map((img, i) => {
+                const previewSrc = getImageUrl(img.thumbnailUrl || img.url);
+                return (
+                  <div key={i} style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden', background: 'var(--bg-muted)' }}>
+                    {previewSrc ? (
+                      <img 
+                        src={previewSrc} 
+                        alt="Preview" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>No Img</span>
+                    )}
+                    
+                    <button type="button" onClick={() => removeImage(i)} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(255,255,255,0.9)', color: 'var(--error)', border: 'none', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                      <Trash2 size={14} />
+                    </button>
+                    {img.isPrimary && <span style={{ position: 'absolute', bottom: '0', left: '0', right: '0', background: 'var(--primary)', color: 'white', fontSize: '0.6rem', textAlign: 'center', padding: '2px 0' }}>Primary</span>}
+                  </div>
+                );
+              })}
               
               {formData.images.length < 5 && (
                 <div style={{ position: 'relative', width: '100px', height: '100px', borderRadius: '8px', border: '2px dashed var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', cursor: 'pointer', background: 'var(--bg-main)' }} className="hover-lift">
@@ -327,7 +338,24 @@ export const AdminProducts: React.FC = () => {
               <tr key={prod.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    {!isQuickEdit && prod.images?.[0] && <img src={prod.images[0].thumbnailUrl || prod.images[0].url} alt={prod.name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} />}
+                    {!isQuickEdit && (() => {
+                      const primaryImg = prod.images?.find((img: any) => img.isPrimary) || prod.images?.[0];
+                      const imgSrc = primaryImg ? getImageUrl(primaryImg.thumbnailUrl || primaryImg.url) : null;
+                      return imgSrc ? (
+                        <img 
+                          src={imgSrc} 
+                          alt={prod.name} 
+                          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="%23888" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                          }}
+                        />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Package size={20} color="var(--text-muted)" />
+                        </div>
+                      );
+                    })()}
                     <div>
                       <strong>{prod.name}</strong>
                       {!isQuickEdit && <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{prod.brand}</div>}

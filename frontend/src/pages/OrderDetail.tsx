@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { ArrowLeft, Package, CheckCircle, Truck, XCircle, Star, X, Loader } from 'lucide-react';
+import { getImageUrl } from '../utils/image';
 
 const OrderDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -196,7 +197,7 @@ const OrderDetail: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {order.items.map((item: any) => (
                 <div key={item.id} style={{ display: 'flex', gap: '1rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border)' }}>
-                  <img src={item.product.images?.[0]?.url || 'https://via.placeholder.com/80'} alt={item.product.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
+                  <img src={getImageUrl(item.product.images?.[0]?.url) || 'https://via.placeholder.com/80'} alt={item.product.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px' }} />
                   <div style={{ flex: 1 }}>
                     <Link to={`/products/${item.productId}`} style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-h)', textDecoration: 'none' }}>{item.product.name}</Link>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.25rem' }}>Qty: {item.quantity}</div>

@@ -4,6 +4,7 @@ import { SEO } from '../components/SEO';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { Trash2, Plus, Minus } from 'lucide-react';
+import { getImageUrl } from '../utils/image';
 
 const CartPage: React.FC = () => {
   const { cart, updateQuantity, removeFromCart, totalAmount } = useCart();
@@ -57,7 +58,7 @@ const CartPage: React.FC = () => {
                 <div key={item.id} className="glass-panel" style={{ display: 'flex', padding: '1.5rem', background: 'var(--bg)', borderRadius: '16px', border: '1px solid var(--border)', gap: '1.5rem' }}>
                   <div style={{ width: '120px', height: '120px', borderRadius: '12px', overflow: 'hidden', background: 'var(--border)', flexShrink: 0 }}>
                     <img
-                      src={item.product.images?.[0]?.url || 'https://via.placeholder.com/150'}
+                      src={getImageUrl(item.product.images?.[0]?.url) || 'https://via.placeholder.com/150'}
                       alt={item.product.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
@@ -162,7 +163,7 @@ const CartPage: React.FC = () => {
               <div key={product.id} className="glass-panel" style={{ padding: '1rem', borderRadius: '16px', background: 'var(--bg)', border: '1px solid var(--border)', transition: 'transform 0.2s', cursor: 'pointer' }} onClick={() => navigate(`/products/${product.id}`)}>
                 <div style={{ width: '100%', aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', background: 'var(--border)', marginBottom: '1rem' }}>
                   <img
-                    src={product.images?.[0]?.url || 'https://via.placeholder.com/150'}
+                    src={getImageUrl(product.images?.[0]?.url) || 'https://via.placeholder.com/150'}
                     alt={product.name}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />

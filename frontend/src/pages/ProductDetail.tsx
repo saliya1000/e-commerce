@@ -5,6 +5,7 @@ import api from '../services/api';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { SEO } from '../components/SEO';
+import { getImageUrl } from '../utils/image';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,8 +30,8 @@ const ProductDetail: React.FC = () => {
         ]);
         setProduct(prodRes.data);
         setReviews(revRes.data);
-        const primaryImg = prodRes.data.images?.find((img: any) => img.isPrimary)?.url || prodRes.data.images?.[0]?.url || null;
-        setActiveImage(primaryImg);
+        const rawPrimaryImg = prodRes.data.images?.find((img: any) => img.isPrimary)?.url || prodRes.data.images?.[0]?.url || null;
+        setActiveImage(rawPrimaryImg ? getImageUrl(rawPrimaryImg) : null);
         
         // Fetch related products
         if (prodRes.data.categoryId) {
@@ -96,15 +97,15 @@ const ProductDetail: React.FC = () => {
               {product.images.map((img: any, idx: number) => (
                 <div 
                   key={idx} 
-                  onClick={() => setActiveImage(img.url)}
-                  className={`rounded-2xl overflow-hidden cursor-pointer flex-shrink-0 transition-transform ${activeImage === img.url ? 'shadow-md' : ''}`}
+                  onClick={() => setActiveImage(getImageUrl(img.url))}
+                  className={`rounded-2xl overflow-hidden cursor-pointer flex-shrink-0 transition-transform ${activeImage === getImageUrl(img.url) ? 'shadow-md' : ''}`}
                   style={{ 
                     width: '90px', height: '90px',
-                    border: activeImage === img.url ? '3px solid var(--primary)' : '3px solid transparent',
-                    opacity: activeImage === img.url ? 1 : 0.7,
+                    border: activeImage === getImageUrl(img.url) ? '3px solid var(--primary)' : '3px solid transparent',
+                    opacity: activeImage === getImageUrl(img.url) ? 1 : 0.7,
                   }}
                 >
-                  <img src={img.thumbnailUrl || img.url} alt={`${product.name} thumbnail`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={getImageUrl(img.thumbnailUrl || img.url)} alt={`${product.name} thumbnail`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               ))}
             </div>
@@ -162,7 +163,7 @@ const ProductDetail: React.FC = () => {
               <Link to={`/products/${prod.id}`} key={prod.id} className="glass-panel transition-transform hover:scale-105 hover:shadow-xl" style={{ display: 'block', padding: '1.5rem', textDecoration: 'none', color: 'inherit' }}>
                 <div className="rounded-2xl" style={{ height: '220px', background: 'var(--bg-muted)', marginBottom: '1.25rem', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {prod.images?.[0] ? (
-                    <img src={prod.images[0].mediumUrl || prod.images[0].url} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    <img src={getImageUrl(prod.images[0].mediumUrl || prod.images[0].url)} alt={prod.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   ) : (
                     <Package size={48} color="var(--text-muted)" opacity={0.3} />
                   )}

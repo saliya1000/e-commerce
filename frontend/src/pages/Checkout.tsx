@@ -8,6 +8,7 @@ import { SEO } from '../components/SEO';
 import { useAuth } from '../context/AuthContext';
 import { Trash2, Plus, Minus, CheckCircle, ShieldCheck } from 'lucide-react';
 import { z } from 'zod';
+import { getImageUrl } from '../utils/image';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_dummy');
 
@@ -456,7 +457,7 @@ const Checkout: React.FC = () => {
                 <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', paddingBottom: '1rem', borderBottom: '1px dashed #E2E8F0' }}>
                   <div style={{ width: '64px', height: '64px', borderRadius: '12px', overflow: 'hidden', background: '#F3F0E9', flexShrink: 0 }}>
                     <img
-                      src={item.product.images?.[0]?.url || 'https://via.placeholder.com/64'}
+                      src={getImageUrl(item.product.images?.[0]?.url) || 'https://via.placeholder.com/64'}
                       alt={item.product.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />

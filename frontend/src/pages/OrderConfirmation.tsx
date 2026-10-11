@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import { CheckCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { getImageUrl } from '../utils/image';
 
 const OrderConfirmation: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -83,7 +84,7 @@ const OrderConfirmation: React.FC = () => {
             {order.items.map((item: any) => (
               <li key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 0', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <img src={item.product.images?.[0]?.url || 'https://via.placeholder.com/50'} alt={item.product.name} style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }} />
+                  <img src={getImageUrl(item.product.images?.[0]?.url) || 'https://via.placeholder.com/50'} alt={item.product.name} style={{ width: '60px', height: '60px', borderRadius: '8px', objectFit: 'cover' }} />
                   <div style={{ marginLeft: '1rem' }}>
                     <p style={{ fontSize: '1rem', fontWeight: 500, color: 'var(--text-h)', margin: '0 0 0.25rem 0' }}>{item.product.name}</p>
                     <p style={{ fontSize: '0.875rem', color: 'var(--text-muted, #6b7280)', margin: 0 }}>Qty: {item.quantity}</p>

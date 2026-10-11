@@ -53,8 +53,8 @@ export const processProductImage = async (
   fs.unlinkSync(filePath);
 
   return {
-    url: `${baseUrl}/api/uploads/${largeFilename}`,
-    thumbnailUrl: `${baseUrl}/api/uploads/${thumbFilename}`,
-    mediumUrl: `${baseUrl}/api/uploads/${mediumFilename}`
+    url: `/api/uploads/${largeFilename}`,
+    thumbnailUrl: `/api/uploads/${thumbFilename}`,
+    mediumUrl: `/api/uploads/${mediumFilename}`
   };
 };

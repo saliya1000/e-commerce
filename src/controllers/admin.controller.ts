@@ -416,10 +416,27 @@ export const bulkUploadProducts = async (req: Request, res: Response, next: Next
 export const updateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
-    const { name, description, price, cost, stockQuantity, categoryId, brand } = req.body;
+    const { name, description, price, cost, stockQuantity, categoryId, brand, images } = req.body;
+    
+    if (images && Array.isArray(images)) {
+      await prisma.productImage.deleteMany({ where: { productId: id } });
+      if (images.length > 0) {
+        await prisma.productImage.createMany({
+          data: images.map((img: any) => ({
+            productId: id,
+            url: img.url,
+            thumbnailUrl: img.thumbnailUrl || null,
+            mediumUrl: img.mediumUrl || null,
+            isPrimary: Boolean(img.isPrimary)
+          }))
+        });
+      }
+    }
+
     const updated = await prisma.product.update({
       where: { id },
-      data: { name, description, price, cost, stockQuantity, categoryId, brand }
+      data: { name, description, price, cost, stockQuantity, categoryId, brand },
+      include: { images: true, category: true }
     });
     res.json(updated);
   } catch (error) { next(error); }

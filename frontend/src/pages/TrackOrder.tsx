@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, Search, ArrowRight, Truck, CheckCircle, XCircle, ChevronLeft, Loader } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
+import { getImageUrl } from '../utils/image';
 
 const TrackOrder: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -204,7 +205,7 @@ const TrackOrder: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {order.items.map((item: any) => (
                   <div key={item.id} style={{ display: 'flex', gap: '1.5rem', paddingBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', alignItems: 'center' }}>
-                    <img src={item.product.images?.[0]?.url || 'https://via.placeholder.com/80'} alt={item.product.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '12px', background: 'white' }} />
+                    <img src={getImageUrl(item.product.images?.[0]?.url) || 'https://via.placeholder.com/80'} alt={item.product.name} style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '12px', background: 'white' }} />
                     <div style={{ flex: 1 }}>
                       <Link to={`/products/${item.productId}`} style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-main)', textDecoration: 'none' }} className="hover-text-primary">{item.product.name}</Link>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.25rem' }}>Qty: {item.quantity}</div>

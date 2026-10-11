@@ -10,9 +10,9 @@ export const createCategorySchema = Joi.object({
 });
 
 export const productImageSchema = Joi.object({
-  url: Joi.string().uri().required(),
-  thumbnailUrl: Joi.string().uri().allow(null, '').optional(),
-  mediumUrl: Joi.string().uri().allow(null, '').optional(),
+  url: Joi.string().required(),
+  thumbnailUrl: Joi.string().allow(null, '').optional(),
+  mediumUrl: Joi.string().allow(null, '').optional(),
   isPrimary: Joi.boolean().default(false)
 });
 
