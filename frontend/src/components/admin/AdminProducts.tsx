@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
-import { Trash2, Edit2, Plus, Package } from 'lucide-react';
+import { Trash2, Edit2, Plus, Package, Star } from 'lucide-react';
 import { AdminSearch } from './AdminSearch';
 import { AdminPagination } from './AdminPagination';
 import { getImageUrl } from '../../utils/image';
@@ -17,6 +17,7 @@ export const AdminProducts: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [featuredFilter, setFeaturedFilter] = useState<'all' | 'featured' | 'standard'>('all');
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -30,6 +31,7 @@ export const AdminProducts: React.FC = () => {
     name: '', sku: '', description: '', price: 0, cost: 0, stockQuantity: 0, categoryId: '', brand: '',
     weightMetric: '', lengthMetric: '', widthMetric: '', heightMetric: '',
     isEnabled: true,
+    isFeatured: false,
     attributes: [] as { name: string, value: string }[],
     images: [] as { url: string, thumbnailUrl?: string, mediumUrl?: string, isPrimary: boolean }[]
   };
@@ -39,14 +41,16 @@ export const AdminProducts: React.FC = () => {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-  }, [page, debouncedSearch]);
+  }, [page, debouncedSearch, featuredFilter]);
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/admin/products', {
-        params: { page, limit: 10, search: debouncedSearch }
-      });
+      const params: any = { page, limit: 10, search: debouncedSearch };
+      if (featuredFilter === 'featured') params.isFeatured = 'true';
+      if (featuredFilter === 'standard') params.isFeatured = 'false';
+
+      const res = await api.get('/admin/products', { params });
       setProducts(res.data.data);
       setTotalPages(res.data.meta.totalPages);
     } catch (err) {
@@ -74,6 +78,7 @@ export const AdminProducts: React.FC = () => {
         cost: Number(formData.cost),
         stockQuantity: Number(formData.stockQuantity),
         isEnabled: formData.isEnabled !== false,
+        isFeatured: Boolean(formData.isFeatured),
         weightMetric: formData.weightMetric ? Number(formData.weightMetric) : undefined,
         lengthMetric: formData.lengthMetric ? Number(formData.lengthMetric) : undefined,
         widthMetric: formData.widthMetric ? Number(formData.widthMetric) : undefined,
@@ -110,6 +115,7 @@ export const AdminProducts: React.FC = () => {
       widthMetric: prod.widthMetric || '',
       heightMetric: prod.heightMetric || '',
       isEnabled: prod.isEnabled !== false,
+      isFeatured: Boolean(prod.isFeatured),
       attributes: prod.attributes || [],
       images: prod.images || []
     });
@@ -123,6 +129,17 @@ export const AdminProducts: React.FC = () => {
       await api.patch(`/admin/products/${id}/quick`, { isEnabled: nextStatus });
     } catch (err) {
       console.error('Failed to toggle product status', err);
+      fetchProducts();
+    }
+  };
+
+  const handleToggleFeatured = async (id: string, currentFeatured: boolean) => {
+    const nextFeatured = !currentFeatured;
+    try {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, isFeatured: nextFeatured } : p));
+      await api.patch(`/admin/products/${id}/quick`, { isFeatured: nextFeatured });
+    } catch (err) {
+      console.error('Failed to toggle featured status', err);
       fetchProducts();
     }
   };
@@ -186,8 +203,28 @@ export const AdminProducts: React.FC = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h3 className="font-bold" style={{ fontSize: '1.5rem', margin: 0 }}>Products</h3>
         
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <AdminSearch search={search} setSearch={setSearch} placeholder="Search products..." />
+          <select 
+            className="form-input"
+            value={featuredFilter}
+            onChange={(e) => {
+              setFeaturedFilter(e.target.value as any);
+              setPage(1);
+            }}
+            style={{ 
+              width: 'auto', 
+              minWidth: '150px', 
+              padding: '0.45rem 0.75rem', 
+              cursor: 'pointer',
+              fontWeight: 500
+            }}
+            title="Filter by featured status"
+          >
+            <option value="all">All Products</option>
+            <option value="featured">⭐ Featured Only</option>
+            <option value="standard">Standard Products</option>
+          </select>
           <button className="btn btn-outline" onClick={() => setIsQuickEdit(!isQuickEdit)} style={{ whiteSpace: 'nowrap', width: 'auto' }}>
             {isQuickEdit ? 'Exit Quick Edit' : 'Quick Stock Update'}
           </button>
@@ -369,25 +406,59 @@ export const AdminProducts: React.FC = () => {
             </div>
           </div>
 
-          {/* Visibility / Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1.25rem', background: 'var(--bg-muted)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-            <input 
-              type="checkbox"
-              id="product-is-enabled"
-              checked={formData.isEnabled}
-              onChange={e => setFormData({ ...formData, isEnabled: e.target.checked })}
-              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
-            />
-            <label htmlFor="product-is-enabled" style={{ cursor: 'pointer', userSelect: 'none' }}>
-              <strong style={{ display: 'block', fontSize: '0.9rem', color: formData.isEnabled ? '#15803d' : '#b91c1c' }}>
-                {formData.isEnabled ? '✅ Product is Enabled (Visible in Store)' : '⚠️ Product is Disabled (Hidden from Store)'}
-              </strong>
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                {formData.isEnabled 
-                  ? 'Customers can browse, search, and purchase this product on the frontend.' 
-                  : 'This product will immediately disappear from the frontend customer store and search results.'}
-              </span>
-            </label>
+          {/* Visibility & Featured Options */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+            {/* Status / Visibility */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.85rem 1.25rem', background: 'var(--bg-muted)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <input 
+                type="checkbox"
+                id="product-is-enabled"
+                checked={formData.isEnabled}
+                onChange={e => setFormData({ ...formData, isEnabled: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)', marginTop: '2px' }}
+              />
+              <label htmlFor="product-is-enabled" style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <strong style={{ display: 'block', fontSize: '0.9rem', color: formData.isEnabled ? '#15803d' : '#b91c1c' }}>
+                  {formData.isEnabled ? '✅ Enabled (Visible in Store)' : '⚠️ Disabled (Hidden from Store)'}
+                </strong>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {formData.isEnabled 
+                    ? 'Customers can browse, search, and purchase this product on the frontend.' 
+                    : 'This product will immediately disappear from frontend customer search results and store catalog.'}
+                </span>
+              </label>
+            </div>
+
+            {/* Featured Showcase */}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'flex-start', 
+              gap: '0.75rem', 
+              padding: '0.85rem 1.25rem', 
+              background: formData.isFeatured ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-muted)', 
+              borderRadius: '10px', 
+              border: `1px solid ${formData.isFeatured ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}`,
+              transition: 'all 0.15s ease'
+            }}>
+              <input 
+                type="checkbox"
+                id="product-is-featured"
+                checked={formData.isFeatured}
+                onChange={e => setFormData({ ...formData, isFeatured: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#f59e0b', marginTop: '2px' }}
+              />
+              <label htmlFor="product-is-featured" style={{ cursor: 'pointer', userSelect: 'none' }}>
+                <strong style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem', color: formData.isFeatured ? '#d97706' : 'var(--text-main)' }}>
+                  <Star size={16} style={{ fill: formData.isFeatured ? '#f59e0b' : 'none', color: formData.isFeatured ? '#f59e0b' : 'var(--text-muted)' }} />
+                  {formData.isFeatured ? '⭐ Featured on Homepage' : 'Standard Product'}
+                </strong>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {formData.isFeatured 
+                    ? 'Featured in the Featured Products section on the customer homepage.' 
+                    : 'Not featured on the homepage (standard store product).'}
+                </span>
+              </label>
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
@@ -406,6 +477,7 @@ export const AdminProducts: React.FC = () => {
               <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                 <th style={{ padding: '1rem' }}>Product</th>
                 <th style={{ padding: '1rem' }}>Status</th>
+                <th style={{ padding: '1rem' }}>Featured</th>
                 <th style={{ padding: '1rem' }}>SKU</th>
                 <th style={{ padding: '1rem' }}>Price ($)</th>
                 <th style={{ padding: '1rem' }}>Stock</th>
@@ -414,6 +486,7 @@ export const AdminProducts: React.FC = () => {
               <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                 <th style={{ padding: '1rem' }}>Product</th>
                 <th style={{ padding: '1rem' }}>Status</th>
+                <th style={{ padding: '1rem' }}>Featured</th>
                 <th style={{ padding: '1rem' }}>Price</th>
                 <th style={{ padding: '1rem' }}>Cost</th>
                 <th style={{ padding: '1rem' }}>Stock</th>
@@ -449,6 +522,11 @@ export const AdminProducts: React.FC = () => {
                       {prod.isEnabled === false && (
                         <span style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: '3px', background: '#fee2e2', color: '#b91c1c', fontWeight: 600, marginLeft: '0.4rem' }}>
                           Hidden
+                        </span>
+                      )}
+                      {prod.isFeatured && (
+                        <span style={{ fontSize: '0.68rem', padding: '1px 6px', borderRadius: '3px', background: 'rgba(245, 158, 11, 0.15)', color: '#d97706', fontWeight: 600, marginLeft: '0.4rem', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                          ★ Featured
                         </span>
                       )}
                       {!isQuickEdit && (
@@ -512,6 +590,39 @@ export const AdminProducts: React.FC = () => {
                       display: 'inline-block'
                     }} />
                     {prod.isEnabled !== false ? 'Enabled' : 'Disabled'}
+                  </button>
+                </td>
+
+                {/* Featured Column */}
+                <td style={{ padding: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleFeatured(prod.id, Boolean(prod.isFeatured))}
+                    className="hover-lift"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      padding: '0.3rem 0.65rem',
+                      borderRadius: '20px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      border: `1px solid ${prod.isFeatured ? 'rgba(245, 158, 11, 0.45)' : 'var(--border-color)'}`,
+                      cursor: 'pointer',
+                      background: prod.isFeatured ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-muted)',
+                      color: prod.isFeatured ? '#d97706' : 'var(--text-muted)',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={prod.isFeatured ? 'Click to unfeature this product' : 'Click to feature this product on homepage'}
+                  >
+                    <Star
+                      size={13}
+                      style={{
+                        fill: prod.isFeatured ? '#f59e0b' : 'none',
+                        color: prod.isFeatured ? '#f59e0b' : 'var(--text-muted)'
+                      }}
+                    />
+                    {prod.isFeatured ? 'Featured' : 'Standard'}
                   </button>
                 </td>
                 

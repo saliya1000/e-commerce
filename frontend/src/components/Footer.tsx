@@ -10,9 +10,10 @@ const Footer: React.FC = () => {
           <h3 className="font-extrabold text-primary mb-4" style={{ fontSize: '1.5rem' }}>HappyPets</h3>
           <p className="text-muted mb-4">Delivering joy to your pets with premium food, interactive toys, and cozy accessories.</p>
           <div className="flex gap-4">
-            <span style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-muted)' }}>FB</span>
-            <span style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-muted)' }}>TW</span>
-            <span style={{ cursor: 'pointer', fontWeight: 'bold', color: 'var(--text-muted)' }}>IG</span>
+            <a href="https://facebook.com/happypets" target="_blank" rel="noopener noreferrer" aria-label="HappyPets on Facebook" style={{ fontWeight: 'bold', color: 'var(--text-muted)', textDecoration: 'none' }} className="hover-lift">Facebook</a>
+            <a href="https://twitter.com/happypets" target="_blank" rel="noopener noreferrer" aria-label="HappyPets on Twitter" style={{ fontWeight: 'bold', color: 'var(--text-muted)', textDecoration: 'none' }} className="hover-lift">Twitter</a>
+            <a href="https://instagram.com/happypets" target="_blank" rel="noopener noreferrer" aria-label="HappyPets on Instagram" style={{ fontWeight: 'bold', color: 'var(--text-muted)', textDecoration: 'none' }} className="hover-lift">Instagram</a>
+            <a href="https://youtube.com/@happypets" target="_blank" rel="noopener noreferrer" aria-label="HappyPets on YouTube" style={{ fontWeight: 'bold', color: 'var(--text-muted)', textDecoration: 'none' }} className="hover-lift">YouTube</a>
           </div>
         </div>
         

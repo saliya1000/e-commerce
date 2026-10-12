@@ -218,7 +218,7 @@ export const deleteReview = async (req: Request, res: Response, next: NextFuncti
 
 export const getAdminProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { page = 1, limit = 10, search = '' } = req.query;
+    const { page = 1, limit = 10, search = '', isFeatured, isEnabled } = req.query;
     
     const query: any = { where: {} };
 
@@ -228,6 +228,14 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
         { name: { contains: searchStr, mode: 'insensitive' } },
         { category: { name: { contains: searchStr, mode: 'insensitive' } } }
       ];
+    }
+
+    if (isFeatured !== undefined && isFeatured !== '') {
+      query.where.isFeatured = String(isFeatured) === 'true';
+    }
+
+    if (isEnabled !== undefined && isEnabled !== '') {
+      query.where.isEnabled = String(isEnabled) === 'true';
     }
 
     const skip = (Number(page) - 1) * Number(limit);

@@ -17,6 +17,7 @@ import adminRoutes from './routes/admin.routes';
 import faqRoutes from './routes/faq.routes';
 import deliveryOptionRoutes from './routes/deliveryOption.routes';
 import storefrontRoutes from './routes/storefront.routes';
+import contactRoutes from './routes/contact.routes';
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/delivery-options', deliveryOptionRoutes);
 app.use('/api/storefront', storefrontRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Global Error Handler
 app.use(errorHandler);
