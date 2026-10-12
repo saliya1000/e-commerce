@@ -22,7 +22,8 @@ export const checkoutSchema = Joi.object({
     phone: Joi.string().allow(null, '').optional(),
     email: Joi.string().email().allow(null, '').optional()
   }).required(),
-  shippingMethod: Joi.string().valid('standard', 'express', 'overnight').optional(),
+  shippingMethod: Joi.string().allow(null, '').optional(),
+  deliveryOptionId: Joi.string().allow(null, '').optional(),
   existingOrderId: Joi.string().uuid().allow(null, '').optional(),
   saveAddress: Joi.boolean().optional(),
   couponCode: Joi.string().allow(null, '').optional()
@@ -113,7 +114,7 @@ export const validateCouponRoute = async (req: Request, res: Response) => {
 export const checkout = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const { guestId, shippingAddress, shippingMethod, existingOrderId, couponCode } = req.body;
+    const { guestId, shippingAddress, shippingMethod, deliveryOptionId, existingOrderId, couponCode } = req.body;
     
     console.log(`[CHECKOUT] userId: ${userId}, guestId: ${guestId}`);
 
@@ -156,14 +157,47 @@ export const checkout = async (req: Request, res: Response) => {
       return;
     }
 
-    // Determine shipping cost
-    let shippingCost = 0;
-    if (shippingMethod === 'express') {
+    // Determine shipping cost from active delivery options
+    let shippingCost = 5.00;
+    let finalShippingMethod = shippingMethod || 'Standard Shipping';
+
+    let matchedOption = null;
+    if (deliveryOptionId) {
+      matchedOption = await prisma.deliveryOption.findFirst({
+        where: { id: String(deliveryOptionId), active: true }
+      });
+    }
+
+    if (!matchedOption && shippingMethod) {
+      matchedOption = await prisma.deliveryOption.findFirst({
+        where: {
+          active: true,
+          OR: [
+            { id: String(shippingMethod) },
+            { name: { equals: String(shippingMethod), mode: 'insensitive' } }
+          ]
+        }
+      });
+    }
+
+    if (matchedOption) {
+      shippingCost = Number(matchedOption.cost);
+      finalShippingMethod = matchedOption.name;
+    } else if (shippingMethod === 'express') {
       shippingCost = 15.00;
+      finalShippingMethod = 'Express Shipping';
     } else if (shippingMethod === 'overnight') {
       shippingCost = 25.00;
+      finalShippingMethod = 'Overnight Shipping';
     } else {
-      shippingCost = 5.00; // Default standard shipping
+      const defaultOption = await prisma.deliveryOption.findFirst({
+        where: { active: true },
+        orderBy: { cost: 'asc' }
+      });
+      if (defaultOption) {
+        shippingCost = Number(defaultOption.cost);
+        finalShippingMethod = defaultOption.name;
+      }
     }
 
     // Calculate subtotal
@@ -198,7 +232,7 @@ export const checkout = async (req: Request, res: Response) => {
           data: {
             totalAmount,
             shippingAddress: shippingAddress,
-            shippingMethod: shippingMethod || 'standard',
+            shippingMethod: finalShippingMethod,
             shippingCost,
             couponId: appliedCouponId,
             discountAmount: finalDiscountAmount,
@@ -223,7 +257,7 @@ export const checkout = async (req: Request, res: Response) => {
           paymentStatus: 'UNPAID',
           totalAmount,
           shippingAddress: shippingAddress,
-          shippingMethod: shippingMethod || 'standard',
+          shippingMethod: finalShippingMethod,
           shippingCost,
           couponId: appliedCouponId,
           discountAmount: finalDiscountAmount,

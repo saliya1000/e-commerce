@@ -3,6 +3,7 @@ import { User, Product, Order, OrderItem } from '@prisma/client';
 import prisma from '../prisma';
 import { parse } from 'csv-parse/sync';
 import { publishRefundStatus } from '../utils/amqp';
+import crypto from 'crypto';
 
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -383,36 +384,230 @@ export const getAdminReports = async (req: Request, res: Response, next: NextFun
 
 export const bulkUploadProducts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    let products: any[] = [];
+    let rawRecords: any[] = [];
+
     if (req.file) {
-      // It's a CSV file
+      // It's a CSV file buffer
       const csvString = req.file.buffer.toString('utf-8');
-      const records = parse(csvString, { columns: true, skip_empty_lines: true });
-      products = records.map((r: any) => ({
-        name: r.name,
-        sku: r.sku || null,
-        description: r.description,
-        price: parseFloat(r.price),
-        cost: r.cost ? parseFloat(r.cost) : 0,
-        stockQuantity: parseInt(r.stockQuantity, 10),
-        categoryId: r.categoryId,
-        brand: r.brand
-      }));
-    } else {
-      products = req.body.products;
+      try {
+        rawRecords = parse(csvString, {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+          bom: true,
+          relax_column_count: true
+        });
+      } catch (parseErr: any) {
+        return res.status(400).json({
+          error: `Failed to parse CSV file: ${parseErr.message || 'Invalid CSV format'}`
+        });
+      }
+    } else if (Array.isArray(req.body.products)) {
+      rawRecords = req.body.products;
+    } else if (req.body && typeof req.body === 'object' && Object.keys(req.body).length > 0) {
+      rawRecords = Array.isArray(req.body) ? req.body : [req.body];
     }
 
-    if (!Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ error: 'Expected an array of products or a valid CSV file' });
+    if (!Array.isArray(rawRecords) || rawRecords.length === 0) {
+      return res.status(400).json({ error: 'No product records found. Please upload a valid CSV file with data.' });
     }
 
-    const created = await prisma.product.createMany({
-      data: products,
-      skipDuplicates: true
+    // Fetch existing categories to resolve Category IDs from names, slugs, or IDs
+    const categories = await prisma.category.findMany({
+      include: { parent: true }
     });
 
-    res.status(201).json({ message: `${created.count} products created successfully` });
-  } catch (error) { next(error); }
+    const categoryMap = new Map<string, string>();
+    for (const cat of categories) {
+      categoryMap.set(cat.id.toLowerCase(), cat.id);
+      categoryMap.set(cat.name.toLowerCase().trim(), cat.id);
+      if (cat.parent) {
+        categoryMap.set(`${cat.parent.name} > ${cat.name}`.toLowerCase().trim(), cat.id);
+        categoryMap.set(`${cat.parent.name}/${cat.name}`.toLowerCase().trim(), cat.id);
+      }
+    }
+
+    const defaultCategory = categories[0] || null;
+
+    // Helper to find case-insensitive values by synonym keys
+    const getField = (row: any, aliases: string[]): any => {
+      const rowKeys = Object.keys(row);
+      for (const alias of aliases) {
+        const foundKey = rowKeys.find(
+          k => k.trim().toLowerCase().replace(/[\s_-]/g, '') === alias.toLowerCase().replace(/[\s_-]/g, '')
+        );
+        if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+          const val = String(row[foundKey]).trim();
+          if (val.length > 0) return val;
+        }
+      }
+      return undefined;
+    };
+
+    const productRecords: any[] = [];
+    const imageRecords: any[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < rawRecords.length; i++) {
+      const r = rawRecords[i];
+      const rowNum = i + 1;
+
+      const name = getField(r, ['name', 'product_name', 'productname', 'title']);
+      if (!name) {
+        // Skip entirely blank rows or flag error if row had other fields
+        const hasAnyContent = Object.values(r).some(v => Boolean(v && String(v).trim()));
+        if (!hasAnyContent) continue;
+        errors.push(`Row ${rowNum}: Product name is missing.`);
+        continue;
+      }
+
+      // Category resolution
+      const rawCat = getField(r, ['categoryId', 'category_id', 'category', 'categoryName', 'category_name']);
+      let resolvedCategoryId: string | null = null;
+
+      if (rawCat) {
+        const cleanedCat = rawCat.toLowerCase().trim();
+        if (categoryMap.has(cleanedCat)) {
+          resolvedCategoryId = categoryMap.get(cleanedCat)!;
+        } else if (
+          cleanedCat === 'replace-with-category-id' ||
+          cleanedCat === 'sample-category-id' ||
+          cleanedCat === 'replace-with-actual-category-id'
+        ) {
+          if (defaultCategory) {
+            resolvedCategoryId = defaultCategory.id;
+          }
+        }
+      }
+
+      // If category not resolved but we have categories available
+      if (!resolvedCategoryId) {
+        if (rawCat) {
+          errors.push(
+            `Row ${rowNum} ("${name}"): Category "${rawCat}" was not found. Available categories: ${categories.map(c => c.name).join(', ')}`
+          );
+          continue;
+        } else if (defaultCategory) {
+          resolvedCategoryId = defaultCategory.id;
+        } else {
+          errors.push(`Row ${rowNum} ("${name}"): No category found. Please create a category first.`);
+          continue;
+        }
+      }
+
+      // Price parsing
+      const rawPrice = getField(r, ['price', 'unit_price', 'amount', 'selling_price']);
+      let price = 0;
+      if (rawPrice !== undefined) {
+        const sanitizedPrice = String(rawPrice).replace(/[$,\s]/g, '');
+        price = parseFloat(sanitizedPrice);
+        if (isNaN(price) || price < 0) price = 0;
+      }
+
+      // Cost parsing
+      const rawCost = getField(r, ['cost', 'unit_cost', 'cost_price']);
+      let cost = 0;
+      if (rawCost !== undefined) {
+        const sanitizedCost = String(rawCost).replace(/[$,\s]/g, '');
+        cost = parseFloat(sanitizedCost);
+        if (isNaN(cost) || cost < 0) cost = 0;
+      }
+
+      // Stock quantity
+      const rawStock = getField(r, ['stockQuantity', 'stock_quantity', 'stock', 'quantity', 'qty']);
+      let stockQuantity = 0;
+      if (rawStock !== undefined) {
+        const sanitizedStock = String(rawStock).replace(/[,\s]/g, '');
+        stockQuantity = parseInt(sanitizedStock, 10);
+        if (isNaN(stockQuantity) || stockQuantity < 0) stockQuantity = 0;
+      }
+
+      // SKU
+      const rawSku = getField(r, ['sku', 'product_sku', 'code']);
+      const sku = rawSku ? String(rawSku).trim() : null;
+
+      // Description
+      const rawDesc = getField(r, ['description', 'desc', 'details', 'body']);
+      const description = rawDesc || name;
+
+      // Brand
+      const rawBrand = getField(r, ['brand', 'brand_name', 'manufacturer']);
+      const brand = rawBrand || null;
+
+      // Generate UUID
+      const productId = crypto.randomUUID();
+
+      productRecords.push({
+        id: productId,
+        name,
+        sku,
+        description,
+        price,
+        cost,
+        stockQuantity,
+        isEnabled: true,
+        categoryId: resolvedCategoryId,
+        brand
+      });
+
+      // Optional image
+      const rawImage = getField(r, ['imageUrl', 'image_url', 'image', 'images', 'img', 'photo']);
+      if (rawImage) {
+        imageRecords.push({
+          productId,
+          url: rawImage,
+          isPrimary: true
+        });
+      }
+    }
+
+    if (errors.length > 0 && productRecords.length === 0) {
+      return res.status(400).json({
+        error: errors.join('\n'),
+        details: errors
+      });
+    }
+
+    if (productRecords.length === 0) {
+      return res.status(400).json({ error: 'No valid products found in the uploaded file.' });
+    }
+
+    // Insert products and their images in transaction
+    const [createdProducts, createdImages] = await prisma.$transaction(async (tx) => {
+      const pResult = await tx.product.createMany({
+        data: productRecords,
+        skipDuplicates: true
+      });
+
+      let iCount = 0;
+      if (imageRecords.length > 0) {
+        const iResult = await tx.productImage.createMany({
+          data: imageRecords
+        });
+        iCount = iResult.count;
+      }
+
+      return [pResult.count, iCount];
+    });
+
+    let message = `Successfully imported ${createdProducts} products`;
+    if (createdImages > 0) {
+      message += ` (with ${createdImages} images)`;
+    }
+    if (errors.length > 0) {
+      message += `. Note: ${errors.length} rows had warnings: ${errors.slice(0, 3).join('; ')}`;
+    }
+
+    res.status(201).json({
+      message,
+      count: createdProducts,
+      imagesCount: createdImages,
+      warnings: errors.length > 0 ? errors : undefined
+    });
+  } catch (error: any) {
+    console.error('bulkUploadProducts error:', error);
+    next(error);
+  }
 };
 
 // --- New Admin Features ---
@@ -421,7 +616,7 @@ export const bulkUploadProducts = async (req: Request, res: Response, next: Next
 export const updateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
-    const { name, description, price, cost, stockQuantity, categoryId, brand, images } = req.body;
+    const { name, description, price, cost, stockQuantity, categoryId, brand, images, isEnabled, isFeatured } = req.body;
     
     if (images && Array.isArray(images)) {
       await prisma.productImage.deleteMany({ where: { productId: id } });
@@ -440,8 +635,12 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
 
     const updated = await prisma.product.update({
       where: { id },
-      data: { name, description, price, cost, stockQuantity, categoryId, brand },
-      include: { images: true, category: true }
+      data: { 
+        name, description, price, cost, stockQuantity, categoryId, brand,
+        ...(isEnabled !== undefined && { isEnabled: Boolean(isEnabled) }),
+        ...(isFeatured !== undefined && { isFeatured: Boolean(isFeatured) })
+      },
+      include: { images: true, category: { include: { parent: true } } }
     });
     res.json(updated);
   } catch (error) { next(error); }
@@ -458,14 +657,17 @@ export const deleteProduct = async (req: Request, res: Response, next: NextFunct
 export const quickUpdateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
-    const { sku, price, stockQuantity } = req.body;
+    const { sku, price, stockQuantity, isEnabled, isFeatured } = req.body;
     const updated = await prisma.product.update({
       where: { id },
       data: {
-        sku: sku || null,
+        sku: sku !== undefined ? (sku || null) : undefined,
         price: price !== undefined ? Number(price) : undefined,
         stockQuantity: stockQuantity !== undefined ? Number(stockQuantity) : undefined,
-      }
+        isEnabled: isEnabled !== undefined ? Boolean(isEnabled) : undefined,
+        isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : undefined
+      },
+      include: { images: true, category: { include: { parent: true } } }
     });
     res.json(updated);
   } catch (error) { next(error); }
@@ -564,7 +766,52 @@ export const getRefunds = async (req: Request, res: Response, next: NextFunction
 // Delivery Options
 export const getDeliveryOptions = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const options = await prisma.deliveryOption.findMany();
+    let options = await prisma.deliveryOption.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Auto-seed standard options if table is empty
+    if (options.length === 0) {
+      await prisma.deliveryOption.createMany({
+        data: [
+          { name: 'Standard Shipping', description: '3-5 business days', cost: 5.00, estimatedDays: 5, active: true },
+          { name: 'Express Shipping', description: '1-2 business days', cost: 15.00, estimatedDays: 2, active: true },
+          { name: 'Overnight Shipping', description: 'Next business day', cost: 25.00, estimatedDays: 1, active: true },
+        ]
+      });
+      options = await prisma.deliveryOption.findMany({
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+
+    res.json(options);
+  } catch (error) { next(error); }
+};
+
+export const getActiveDeliveryOptions = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    let options = await prisma.deliveryOption.findMany({
+      where: { active: true },
+      orderBy: { cost: 'asc' }
+    });
+
+    if (options.length === 0) {
+      const count = await prisma.deliveryOption.count();
+      if (count === 0) {
+        await prisma.deliveryOption.createMany({
+          data: [
+            { name: 'Standard Shipping', description: '3-5 business days', cost: 5.00, estimatedDays: 5, active: true },
+            { name: 'Express Shipping', description: '1-2 business days', cost: 15.00, estimatedDays: 2, active: true },
+            { name: 'Overnight Shipping', description: 'Next business day', cost: 25.00, estimatedDays: 1, active: true },
+          ]
+        });
+        options = await prisma.deliveryOption.findMany({
+          where: { active: true },
+          orderBy: { cost: 'asc' }
+        });
+      }
+    }
+
     res.json(options);
   } catch (error) { next(error); }
 };
@@ -572,8 +819,18 @@ export const getDeliveryOptions = async (req: Request, res: Response, next: Next
 export const createDeliveryOption = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, description, cost, estimatedDays, active } = req.body;
+    if (!name || cost === undefined) {
+      res.status(400).json({ error: 'Name and price are required' });
+      return;
+    }
     const option = await prisma.deliveryOption.create({
-      data: { name, description, cost, estimatedDays, active }
+      data: {
+        name: String(name).trim(),
+        description: description ? String(description).trim() : null,
+        cost: Number(cost),
+        estimatedDays: Number(estimatedDays) || 1,
+        active: active !== undefined ? Boolean(active) : true
+      }
     });
     res.status(201).json(option);
   } catch (error) { next(error); }
@@ -585,7 +842,13 @@ export const updateDeliveryOption = async (req: Request, res: Response, next: Ne
     const { name, description, cost, estimatedDays, active } = req.body;
     const updated = await prisma.deliveryOption.update({
       where: { id },
-      data: { name, description, cost, estimatedDays, active }
+      data: {
+        ...(name !== undefined && { name: String(name).trim() }),
+        ...(description !== undefined && { description: description ? String(description).trim() : null }),
+        ...(cost !== undefined && { cost: Number(cost) }),
+        ...(estimatedDays !== undefined && { estimatedDays: Number(estimatedDays) }),
+        ...(active !== undefined && { active: Boolean(active) })
+      }
     });
     res.json(updated);
   } catch (error) { next(error); }

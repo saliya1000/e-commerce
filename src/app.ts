@@ -15,6 +15,8 @@ import paymentMethodRoutes from './routes/paymentMethod.routes';
 import reviewRoutes from './routes/review.routes';
 import adminRoutes from './routes/admin.routes';
 import faqRoutes from './routes/faq.routes';
+import deliveryOptionRoutes from './routes/deliveryOption.routes';
+import storefrontRoutes from './routes/storefront.routes';
 
 const app = express();
 
@@ -56,6 +58,8 @@ app.use('/api/payment-methods', paymentMethodRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/faqs', faqRoutes);
+app.use('/api/delivery-options', deliveryOptionRoutes);
+app.use('/api/storefront', storefrontRoutes);
 
 // Global Error Handler
 app.use(errorHandler);

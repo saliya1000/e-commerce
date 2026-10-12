@@ -141,8 +141,41 @@ const Checkout: React.FC = () => {
     }
   }, [user]);
 
-  const [shippingMethod, setShippingMethod] = useState('standard');
-  const shippingCost = shippingMethod === 'express' ? 15.00 : (shippingMethod === 'overnight' ? 25.00 : 5.00);
+  interface DeliveryOption {
+    id: string;
+    name: string;
+    description?: string | null;
+    cost: number | string;
+    estimatedDays: number;
+    active: boolean;
+  }
+
+  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
+  const [selectedDeliveryOptionId, setSelectedDeliveryOptionId] = useState<string>('');
+  const [shippingMethod, setShippingMethod] = useState('Standard Shipping');
+  const [loadingDeliveryOptions, setLoadingDeliveryOptions] = useState(true);
+
+  useEffect(() => {
+    api.get('/delivery-options')
+      .then(res => {
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          setDeliveryOptions(res.data);
+          setSelectedDeliveryOptionId(res.data[0].id);
+          setShippingMethod(res.data[0].name);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load delivery options', err);
+      })
+      .finally(() => {
+        setLoadingDeliveryOptions(false);
+      });
+  }, []);
+
+  const selectedOption = deliveryOptions.find(o => o.id === selectedDeliveryOptionId);
+  const shippingCost = selectedOption 
+    ? Number(selectedOption.cost) 
+    : (shippingMethod.toLowerCase().includes('express') ? 15.00 : (shippingMethod.toLowerCase().includes('overnight') ? 25.00 : 5.00));
   const finalTotal = Math.max(0, totalAmount - discountAmount) + shippingCost;
 
   useEffect(() => {
@@ -221,7 +254,8 @@ const Checkout: React.FC = () => {
       const res = await api.post('/orders/checkout', {
         guestId,
         shippingAddress,
-        shippingMethod,
+        shippingMethod: selectedOption ? selectedOption.name : shippingMethod,
+        deliveryOptionId: selectedDeliveryOptionId || undefined,
         saveAddress,
         existingOrderId: pendingOrderId,
         couponCode: appliedCoupon || undefined
@@ -368,38 +402,71 @@ const Checkout: React.FC = () => {
 
                 <hr style={{ borderTop: '1px solid var(--border-color)' }} />
 
-                {/* 2. Shipping Method */}
+                {/* 2. Delivery Option */}
                 <section>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#20B2AA', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', background: '#20B2AA', color: 'white', borderRadius: '50%', fontSize: '1rem' }}>2</span>
-                    Shipping Method
+                    Delivery Option
                   </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '2px solid', borderColor: shippingMethod === 'standard' ? '#FF7F50' : 'var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: shippingMethod === 'standard' ? '#FFF5F2' : '#FFF', transition: 'all 0.2s' }}>
-                      <input type="radio" name="shippingMethod" value="standard" checked={shippingMethod === 'standard'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Standard Shipping</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>3-5 business days</div>
-                      </div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>$5.00</div>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '2px solid', borderColor: shippingMethod === 'express' ? '#FF7F50' : 'var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: shippingMethod === 'express' ? '#FFF5F2' : '#FFF', transition: 'all 0.2s' }}>
-                      <input type="radio" name="shippingMethod" value="express" checked={shippingMethod === 'express'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Express Shipping</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>1-2 business days</div>
-                      </div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>$15.00</div>
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', padding: '1rem', border: '2px solid', borderColor: shippingMethod === 'overnight' ? '#FF7F50' : 'var(--border-color)', borderRadius: '12px', cursor: 'pointer', background: shippingMethod === 'overnight' ? '#FFF5F2' : '#FFF', transition: 'all 0.2s' }}>
-                      <input type="radio" name="shippingMethod" value="overnight" checked={shippingMethod === 'overnight'} onChange={(e) => setShippingMethod(e.target.value)} style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px' }} />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>Overnight Shipping</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Next business day</div>
-                      </div>
-                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>$25.00</div>
-                    </label>
-                  </div>
+                  {loadingDeliveryOptions ? (
+                    <div style={{ padding: '1rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                      Loading delivery options...
+                    </div>
+                  ) : deliveryOptions.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {deliveryOptions.map(opt => {
+                        const isSelected = selectedDeliveryOptionId === opt.id;
+                        const costNum = Number(opt.cost);
+                        return (
+                          <label
+                            key={opt.id}
+                            onClick={() => {
+                              setSelectedDeliveryOptionId(opt.id);
+                              setShippingMethod(opt.name);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              padding: '1rem 1.25rem',
+                              border: '2px solid',
+                              borderColor: isSelected ? '#FF7F50' : 'var(--border-color)',
+                              borderRadius: '12px',
+                              cursor: 'pointer',
+                              background: isSelected ? '#FFF5F2' : '#FFF',
+                              transition: 'all 0.2s',
+                              boxShadow: isSelected ? '0 2px 8px rgba(255, 127, 80, 0.12)' : 'none'
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="deliveryOption"
+                              value={opt.id}
+                              checked={isSelected}
+                              onChange={() => {
+                                setSelectedDeliveryOptionId(opt.id);
+                                setShippingMethod(opt.name);
+                              }}
+                              style={{ marginRight: '1rem', accentColor: '#FF7F50', width: '18px', height: '18px', cursor: 'pointer' }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1rem' }}>{opt.name}</div>
+                              <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                {opt.description || `${opt.estimatedDays} business day${opt.estimatedDays > 1 ? 's' : ''}`}
+                                {opt.estimatedDays && !opt.description?.includes(String(opt.estimatedDays)) ? ` (${opt.estimatedDays} business day${opt.estimatedDays > 1 ? 's' : ''})` : ''}
+                              </div>
+                            </div>
+                            <div style={{ fontWeight: 700, color: costNum === 0 ? '#15803d' : 'var(--text-main)', fontSize: '1.05rem' }}>
+                              {costNum === 0 ? 'FREE' : `$${costNum.toFixed(2)}`}
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ padding: '1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#991b1b', fontSize: '0.9rem' }}>
+                      No delivery options currently available.
+                    </div>
+                  )}
                 </section>
 
                 <button type="submit" className="btn" disabled={isInitializingPayment || isValidatingAddress} style={{ padding: '1.25rem', fontSize: '1.1rem', marginTop: '1rem' }}>
@@ -525,8 +592,10 @@ const Checkout: React.FC = () => {
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
-                <span>Shipping ({shippingMethod})</span>
-                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>${shippingCost.toFixed(2)}</span>
+                <span>Delivery ({selectedOption ? selectedOption.name : shippingMethod})</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                  {shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}
+                </span>
               </div>
               <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.5rem 0' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

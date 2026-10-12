@@ -30,10 +30,24 @@ export const upload = multer({
 });
 
 const csvFilter = (req: any, file: any, cb: any) => {
-  if (file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel') {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  const mimetype = (file.mimetype || '').toLowerCase();
+  
+  const isCsv =
+    ext === '.csv' ||
+    mimetype === 'text/csv' ||
+    mimetype === 'application/vnd.ms-excel' ||
+    mimetype === 'text/plain' ||
+    mimetype === 'application/csv' ||
+    mimetype === 'text/x-csv' ||
+    mimetype === 'application/x-csv' ||
+    mimetype === 'text/comma-separated-values' ||
+    mimetype === 'application/octet-stream';
+
+  if (isCsv) {
     cb(null, true);
   } else {
-    cb(new Error('Only CSV files are allowed!'), false);
+    cb(new Error('Only CSV files (.csv) are allowed!'), false);
   }
 };
 

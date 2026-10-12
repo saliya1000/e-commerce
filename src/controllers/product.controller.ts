@@ -82,7 +82,7 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
       name, description, price, cost, stockQuantity, categoryId, brand, 
       weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
       lengthImperial, widthImperial, heightImperial,
-      attributes, images 
+      attributes, images, isEnabled, isFeatured
     } = req.body;
 
     const product = await prisma.product.create({
@@ -90,6 +90,8 @@ export const createProduct = async (req: Request, res: Response, next: NextFunct
         name, description, price, cost, stockQuantity, categoryId, brand,
         weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
         lengthImperial, widthImperial, heightImperial,
+        isEnabled: isEnabled !== undefined ? Boolean(isEnabled) : true,
+        isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : false,
         attributes: {
           create: attributes || []
         },
@@ -110,11 +112,11 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
   try {
     const { 
       q, categoryId, brand, minPrice, maxPrice, 
-      sortBy, sortOrder, 
+      sortBy, sortOrder, isFeatured,
       page = 1, limit = 10 
     } = req.query;
 
-    const query: any = { where: {} };
+    const query: any = { where: { isEnabled: true } };
 
     // Search by name or description using PostgreSQL fullTextSearch
     if (q) {
@@ -127,6 +129,9 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
 
     if (categoryId) query.where.categoryId = String(categoryId);
     if (brand) query.where.brand = String(brand);
+    if (isFeatured !== undefined) {
+      query.where.isFeatured = String(isFeatured) === 'true';
+    }
     
     if (minPrice || maxPrice) {
       query.where.price = {};
@@ -171,7 +176,7 @@ export const getProductById = async (req: Request, res: Response, next: NextFunc
       where: { id: String(req.params.id) },
       include: { images: true, attributes: true, category: true }
     });
-    if (!product) return res.status(404).json({ error: 'Product not found' });
+    if (!product || !product.isEnabled) return res.status(404).json({ error: 'Product not found' });
     res.json(product);
   } catch (error) {
     next(error);
@@ -187,6 +192,7 @@ export const suggestProducts = async (req: Request, res: Response, next: NextFun
     const searchStr = String(queryStr).trim();
     const suggestions = await prisma.product.findMany({
       where: {
+        isEnabled: true,
         OR: [
           { name: { contains: searchStr, mode: 'insensitive' } },
           { description: { contains: searchStr, mode: 'insensitive' } }

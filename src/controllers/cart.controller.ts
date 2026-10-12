@@ -74,8 +74,8 @@ export const addToCart = async (req: Request, res: Response) => {
     }
 
     const product = await prisma.product.findUnique({ where: { id: productId } });
-    if (!product) {
-      res.status(404).json({ message: 'Product not found' });
+    if (!product || !product.isEnabled) {
+      res.status(404).json({ message: 'Product is no longer available' });
       return;
     }
 

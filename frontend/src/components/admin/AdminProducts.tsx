@@ -29,6 +29,7 @@ export const AdminProducts: React.FC = () => {
   const initialFormState = {
     name: '', sku: '', description: '', price: 0, cost: 0, stockQuantity: 0, categoryId: '', brand: '',
     weightMetric: '', lengthMetric: '', widthMetric: '', heightMetric: '',
+    isEnabled: true,
     attributes: [] as { name: string, value: string }[],
     images: [] as { url: string, thumbnailUrl?: string, mediumUrl?: string, isPrimary: boolean }[]
   };
@@ -72,6 +73,7 @@ export const AdminProducts: React.FC = () => {
         price: Number(formData.price),
         cost: Number(formData.cost),
         stockQuantity: Number(formData.stockQuantity),
+        isEnabled: formData.isEnabled !== false,
         weightMetric: formData.weightMetric ? Number(formData.weightMetric) : undefined,
         lengthMetric: formData.lengthMetric ? Number(formData.lengthMetric) : undefined,
         widthMetric: formData.widthMetric ? Number(formData.widthMetric) : undefined,
@@ -107,10 +109,22 @@ export const AdminProducts: React.FC = () => {
       lengthMetric: prod.lengthMetric || '',
       widthMetric: prod.widthMetric || '',
       heightMetric: prod.heightMetric || '',
+      isEnabled: prod.isEnabled !== false,
       attributes: prod.attributes || [],
       images: prod.images || []
     });
     setIsFormOpen(true);
+  };
+
+  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
+    const nextStatus = !currentStatus;
+    try {
+      setProducts(prev => prev.map(p => p.id === id ? { ...p, isEnabled: nextStatus } : p));
+      await api.patch(`/admin/products/${id}/quick`, { isEnabled: nextStatus });
+    } catch (err) {
+      console.error('Failed to toggle product status', err);
+      fetchProducts();
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -355,6 +369,27 @@ export const AdminProducts: React.FC = () => {
             </div>
           </div>
 
+          {/* Visibility / Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1.25rem', background: 'var(--bg-muted)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+            <input 
+              type="checkbox"
+              id="product-is-enabled"
+              checked={formData.isEnabled}
+              onChange={e => setFormData({ ...formData, isEnabled: e.target.checked })}
+              style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+            />
+            <label htmlFor="product-is-enabled" style={{ cursor: 'pointer', userSelect: 'none' }}>
+              <strong style={{ display: 'block', fontSize: '0.9rem', color: formData.isEnabled ? '#15803d' : '#b91c1c' }}>
+                {formData.isEnabled ? '✅ Product is Enabled (Visible in Store)' : '⚠️ Product is Disabled (Hidden from Store)'}
+              </strong>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                {formData.isEnabled 
+                  ? 'Customers can browse, search, and purchase this product on the frontend.' 
+                  : 'This product will immediately disappear from the frontend customer store and search results.'}
+              </span>
+            </label>
+          </div>
+
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-outline" style={{ width: 'auto' }} onClick={() => setIsFormOpen(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary" style={{ width: 'auto' }}>{editingId ? 'Update Product' : 'Save New Product'}</button>
@@ -370,6 +405,7 @@ export const AdminProducts: React.FC = () => {
             {isQuickEdit ? (
               <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                 <th style={{ padding: '1rem' }}>Product</th>
+                <th style={{ padding: '1rem' }}>Status</th>
                 <th style={{ padding: '1rem' }}>SKU</th>
                 <th style={{ padding: '1rem' }}>Price ($)</th>
                 <th style={{ padding: '1rem' }}>Stock</th>
@@ -377,6 +413,7 @@ export const AdminProducts: React.FC = () => {
             ) : (
               <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                 <th style={{ padding: '1rem' }}>Product</th>
+                <th style={{ padding: '1rem' }}>Status</th>
                 <th style={{ padding: '1rem' }}>Price</th>
                 <th style={{ padding: '1rem' }}>Cost</th>
                 <th style={{ padding: '1rem' }}>Stock</th>
@@ -408,7 +445,12 @@ export const AdminProducts: React.FC = () => {
                       );
                     })()}
                     <div>
-                      <strong>{prod.name}</strong>
+                      <strong style={{ opacity: prod.isEnabled === false ? 0.65 : 1 }}>{prod.name}</strong>
+                      {prod.isEnabled === false && (
+                        <span style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: '3px', background: '#fee2e2', color: '#b91c1c', fontWeight: 600, marginLeft: '0.4rem' }}>
+                          Hidden
+                        </span>
+                      )}
                       {!isQuickEdit && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '2px', flexWrap: 'wrap' }}>
                           {prod.brand && <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{prod.brand}</span>}
@@ -438,6 +480,39 @@ export const AdminProducts: React.FC = () => {
                       )}
                     </div>
                   </div>
+                </td>
+
+                {/* Status Column */}
+                <td style={{ padding: '1rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleStatus(prod.id, prod.isEnabled !== false)}
+                    className="hover-lift"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      padding: '0.3rem 0.65rem',
+                      borderRadius: '20px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      border: `1px solid ${prod.isEnabled !== false ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.3)'}`,
+                      cursor: 'pointer',
+                      background: prod.isEnabled !== false ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.1)',
+                      color: prod.isEnabled !== false ? '#15803d' : '#b91c1c',
+                      transition: 'all 0.15s ease'
+                    }}
+                    title={prod.isEnabled !== false ? 'Click to Disable (Hide from frontend)' : 'Click to Enable (Show in frontend)'}
+                  >
+                    <span style={{
+                      width: '7px',
+                      height: '7px',
+                      borderRadius: '50%',
+                      background: prod.isEnabled !== false ? '#22c55e' : '#ef4444',
+                      display: 'inline-block'
+                    }} />
+                    {prod.isEnabled !== false ? 'Enabled' : 'Disabled'}
+                  </button>
                 </td>
                 
                 {isQuickEdit ? (
