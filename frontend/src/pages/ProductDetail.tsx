@@ -235,10 +235,10 @@ const ProductDetail: React.FC = () => {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                       <div className="flex-shrink-0" style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #FF4B2B, #FF416C)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.1rem', boxShadow: '0 4px 10px rgba(255, 65, 108, 0.3)' }}>
-                        {review.user?.firstName?.[0] || 'A'}
+                        {(review.displayName || review.user?.firstName || 'A')[0].toUpperCase()}
                       </div>
                       <div className="flex flex-col">
-                        <span className="font-bold text-main" style={{ fontSize: '1.05rem' }}>{review.user?.firstName} {review.user?.lastName?.[0]}.</span>
+                        <span className="font-bold text-main" style={{ fontSize: '1.05rem' }}>{review.displayName || `${review.user?.firstName || ''} ${review.user?.lastName?.[0] || ''}`.trim() || 'Guest'}</span>
                         <span className="text-muted text-xs font-medium">on {new Date(review.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>
                     </div>
