@@ -129,8 +129,12 @@ model Review {
   id        String   @id @default(uuid())
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   productId String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String?
+  // Guest review fields
+  guestOrderId  String?  // The orderId used to verify the guest purchase
+  guestEmail    String?  // The email used at checkout
+  guestName     String?  // Display name for the review
   rating        Int      // 1 to 5
   comment       String?
   status        String   @default("pending") // pending, approved, rejected
@@ -138,6 +142,8 @@ model Review {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   votes         ReviewVote[]
+
+  @@unique([guestOrderId, productId]) // Prevent duplicate guest reviews per order per product
 }
 
 model ReviewVote {

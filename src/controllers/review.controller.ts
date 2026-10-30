@@ -73,7 +73,13 @@ export const getReviews = async (req: Request, res: Response, next: NextFunction
         if (r.user.firstName) r.user.firstName = decrypt(r.user.firstName);
         if (r.user.lastName) r.user.lastName = decrypt(r.user.lastName);
       }
-      return r;
+      // Attach a unified displayName for the frontend
+      return {
+        ...r,
+        displayName: r.user
+          ? `${r.user.firstName || ''} ${r.user.lastName || ''}`.trim()
+          : (r.guestName || 'Guest')
+      };
     });
 
     res.json(decryptedReviews);
@@ -161,3 +167,104 @@ export const checkEligibility = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
+
+// ─── Guest Review Endpoints ───────────────────────────────────────────────────
+
+export const guestReviewSchema = Joi.object({
+  orderId:  Joi.string().uuid().required(),
+  email:    Joi.string().email().required(),
+  rating:   Joi.number().integer().min(1).max(5).required(),
+  comment:  Joi.string().allow('', null).optional(),
+  guestName: Joi.string().allow('', null).optional()
+});
+
+/** Check if a guest is eligible to review a product (orderId + email verification) */
+export const checkGuestEligibility = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { productId } = req.params as { productId: string };
+    const { orderId, email } = req.query as { orderId: string; email: string };
+
+    if (!orderId || !email) {
+      return res.status(400).json({ eligible: false, reason: 'orderId and email are required.' });
+    }
+
+    // Verify the order belongs to this email and is delivered
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, status: 'DELIVERED' },
+      include: { items: { where: { productId } } }
+    });
+
+    const shippingAddr: any = order?.shippingAddress
+      ? (typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress)
+      : null;
+
+    if (!order || shippingAddr?.email?.toLowerCase() !== email.toLowerCase()) {
+      return res.json({ eligible: false, reason: 'No delivered order found with these details.' });
+    }
+
+    if (!order.items || order.items.length === 0) {
+      return res.json({ eligible: false, reason: 'This product was not part of that order.' });
+    }
+
+    // Check if already reviewed from this order
+    const existingReview = await prisma.review.findUnique({
+      where: { guestOrderId_productId: { guestOrderId: orderId, productId } }
+    });
+
+    if (existingReview) {
+      return res.json({ eligible: false, reason: 'You have already submitted a review for this product.' });
+    }
+
+    res.json({ eligible: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Submit a guest review after verifying orderId + email */
+export const addGuestReview = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { productId } = req.params as { productId: string };
+    const { orderId, email, rating, comment, guestName } = req.body;
+
+    // Verify order exists, is delivered, and email matches
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, status: 'DELIVERED' },
+      include: { items: { where: { productId } } }
+    });
+
+    const shippingAddr: any = order?.shippingAddress
+      ? (typeof order.shippingAddress === 'string' ? JSON.parse(order.shippingAddress) : order.shippingAddress)
+      : null;
+
+    if (!order || shippingAddr?.email?.toLowerCase() !== email.toLowerCase()) {
+      return res.status(403).json({ error: 'Order verification failed. Please check your order ID and email.' });
+    }
+
+    if (!order.items || order.items.length === 0) {
+      return res.status(403).json({ error: 'This product was not part of that order.' });
+    }
+
+    // Create the review (unique constraint on guestOrderId+productId prevents duplicates)
+    const review = await prisma.review.create({
+      data: {
+        productId,
+        guestOrderId: orderId,
+        guestEmail: email,
+        guestName: guestName || shippingAddr?.name || 'Guest',
+        rating,
+        comment
+      }
+    });
+
+    await updateProductRating(productId);
+
+    res.status(201).json(review);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'You have already submitted a review for this product.' });
+    }
+    next(error);
+  }
+};
+

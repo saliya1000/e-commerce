@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Search, ArrowRight, Truck, CheckCircle, XCircle, ChevronLeft, Loader } from 'lucide-react';
+import { Package, Search, ArrowRight, Truck, CheckCircle, XCircle, ChevronLeft, Loader, Star, X } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import { getImageUrl } from '../utils/image';
@@ -15,6 +15,14 @@ const TrackOrder: React.FC = () => {
   const [error, setError] = useState('');
   const [order, setOrder] = useState<any>(null);
   const [cancelling, setCancelling] = useState(false);
+
+  // Guest review state
+  const [reviewingItem, setReviewingItem] = useState<any>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewedProducts, setReviewedProducts] = useState<Record<string, boolean>>({});
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +46,29 @@ const TrackOrder: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialOrderId, initialEmail]);
+
+  const submitGuestReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewingItem) return;
+    setReviewError('');
+    setReviewSubmitting(true);
+    try {
+      await api.post(`/reviews/guest/products/${reviewingItem.productId}`, {
+        orderId: order.id,
+        email: email.trim(),
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      setReviewedProducts(prev => ({ ...prev, [reviewingItem.productId]: true }));
+      setReviewingItem(null);
+      setReviewRating(5);
+      setReviewComment('');
+    } catch (err: any) {
+      setReviewError(err.response?.data?.error || 'Failed to submit review. Please try again.');
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const handleCancelOrder = async () => {
     if (!window.confirm('Are you sure you want to cancel this order? This cannot be undone.')) return;
@@ -210,21 +241,134 @@ const TrackOrder: React.FC = () => {
                       <Link to={`/products/${item.productId}`} style={{ fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--text-main)', textDecoration: 'none' }} className="hover-text-primary">{item.product.name}</Link>
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '0.25rem' }}>Qty: {item.quantity}</div>
                     </div>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.15rem', color: 'var(--text-main)' }}>
-                      ${(Number(item.price) * item.quantity).toFixed(2)}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.15rem', color: 'var(--text-main)' }}>
+                        ${(Number(item.price) * item.quantity).toFixed(2)}
+                      </div>
+                      {/* Show Write Review button only when Delivered */}
+                      {order.status === 'Delivered' && (
+                        reviewedProducts[item.productId] ? (
+                          <span style={{ fontSize: '0.82rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
+                            <CheckCircle size={13} /> Reviewed
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => { setReviewingItem(item); setReviewRating(5); setReviewComment(''); setReviewError(''); }}
+                            style={{ fontSize: '0.82rem', padding: '0.3rem 0.75rem', background: 'none', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                          >
+                            Write Review
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '1.5rem', fontWeight: 'bold', fontSize: '1.3rem', color: 'var(--text-main)' }}>
-                <span>Total</span>
-                <span style={{ color: 'var(--primary)' }}>${Number(order.totalAmount).toFixed(2)}</span>
+
+              {/* Cost Breakdown */}
+              <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
+                  <span>Subtotal</span>
+                  <span style={{ color: 'var(--text-main)' }}>
+                    ${(Number(order.totalAmount) - Number(order.shippingCost || 0) + Number(order.discountAmount || 0)).toFixed(2)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: 'var(--text-muted)' }}>
+                  <span>Shipping{order.shippingMethod ? ` (${order.shippingMethod})` : ''}</span>
+                  <span style={{ color: 'var(--text-main)' }}>${Number(order.shippingCost || 0).toFixed(2)}</span>
+                </div>
+                {Number(order.discountAmount) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem' }}>
+                    <span style={{ color: '#10b981' }}>Discount</span>
+                    <span style={{ color: '#10b981' }}>-${Number(order.discountAmount).toFixed(2)}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.75rem', marginTop: '0.25rem', borderTop: '1px solid var(--border-color)', fontWeight: 'bold', fontSize: '1.3rem', color: 'var(--text-main)' }}>
+                  <span>Total</span>
+                  <span style={{ color: 'var(--primary)' }}>${Number(order.totalAmount).toFixed(2)}</span>
+                </div>
               </div>
             </div>
 
           </div>
         )}
       </div>
+
+      {/* Guest Review Modal */}
+      {reviewingItem && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.55)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <form
+            onSubmit={submitGuestReview}
+            className="glass-panel fade-in"
+            style={{ width: '100%', maxWidth: '480px', padding: '2rem', borderRadius: '16px', position: 'relative', backgroundColor: 'var(--bg-main)' }}
+          >
+            <button
+              type="button"
+              onClick={() => setReviewingItem(null)}
+              style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+            >
+              <X size={22} />
+            </button>
+
+            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.25rem', fontWeight: 'bold' }}>Write a Review</h3>
+            <p style={{ margin: '0 0 1.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>{reviewingItem.product.name}</p>
+
+            {reviewError && (
+              <div style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.9rem' }}>
+                {reviewError}
+              </div>
+            )}
+
+            {/* Star Rating */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.95rem' }}>Rating</label>
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px' }}
+                  >
+                    <Star
+                      size={30}
+                      fill={star <= reviewRating ? '#F59E0B' : 'transparent'}
+                      color={star <= reviewRating ? '#F59E0B' : 'var(--border-color)'}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Comment */}
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: '0.5rem', fontSize: '0.95rem' }}>Comment <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span></label>
+              <textarea
+                className="form-input"
+                rows={4}
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                placeholder="What did you like or dislike about this product?"
+                style={{ width: '100%' }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%' }}
+              disabled={reviewSubmitting}
+            >
+              {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 };

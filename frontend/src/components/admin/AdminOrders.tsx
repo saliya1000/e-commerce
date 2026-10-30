@@ -79,12 +79,20 @@ export const AdminOrders: React.FC = () => {
       if (!addr || typeof addr !== 'object') {
         return <p>{String(addrInput)}</p>;
       }
+      // Backend stores: name, line1, line2, city, state, postal_code, country, phone
+      // Fallback to legacy field names: firstName/lastName, address1/address2, zipCode
+      const fullName = addr.name || [addr.firstName, addr.lastName].filter(Boolean).join(' ');
+      const street1 = addr.line1 || addr.address1 || '';
+      const street2 = addr.line2 || addr.address2 || '';
+      const postalCode = addr.postal_code || addr.zipCode || '';
       return (
         <div>
-          <p style={{ margin: 0 }}><strong>{addr.firstName} {addr.lastName}</strong></p>
-          <p style={{ margin: 0 }}>{addr.address1} {addr.address2}</p>
-          <p style={{ margin: 0 }}>{addr.city}, {addr.state} {addr.zipCode}</p>
-          <p style={{ margin: 0 }}>{addr.country}</p>
+          {fullName && <p style={{ margin: 0 }}><strong>{fullName}</strong></p>}
+          {street1 && <p style={{ margin: 0 }}>{street1}{street2 ? ` ${street2}` : ''}</p>}
+          <p style={{ margin: 0 }}>
+            {[addr.city, addr.state, postalCode].filter(Boolean).join(', ')}
+          </p>
+          {addr.country && <p style={{ margin: 0 }}>{addr.country}</p>}
           {addr.phone && <p style={{ margin: 0, marginTop: '0.25rem' }}>Phone: {addr.phone}</p>}
         </div>
       );
