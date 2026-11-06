@@ -54,6 +54,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/oauth/callback" element={<OAuthCallback />} />
       
       <Route path="/products" element={<Layout><ProductList /></Layout>} />
+      <Route path="/search" element={<Layout><ProductList /></Layout>} />
       <Route path="/products/:id" element={<Layout><ProductDetail /></Layout>} />
       <Route path="/cart" element={<Layout><CartPage /></Layout>} />
       <Route path="/checkout" element={<Layout><Checkout /></Layout>} />

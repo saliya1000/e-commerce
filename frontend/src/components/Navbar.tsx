@@ -43,6 +43,16 @@ const Navbar: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (location.pathname === '/products' || location.pathname === '/search') {
+      const params = new URLSearchParams(location.search);
+      const q = params.get('q');
+      if (q !== null && q !== searchQuery) {
+        setSearchQuery(q);
+      }
+    }
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
     const timer = setTimeout(async () => {
       if (searchQuery.trim().length > 1) {
         setLoadingSuggestions(true);

@@ -1,5 +1,16 @@
 import { Router } from 'express';
-import { createCategory, getCategories, createProduct, getProducts, getProductById, suggestProducts, uploadImage, createCategorySchema, createProductSchema } from '../controllers/product.controller';
+import { 
+  createCategory, 
+  getCategories, 
+  createProduct, 
+  getProducts, 
+  getBrands,
+  getProductById, 
+  suggestProducts, 
+  uploadImage, 
+  createCategorySchema, 
+  createProductSchema 
+} from '../controllers/product.controller';
 import { upload } from '../middlewares/upload';
 import { requireAuth, requireRole } from '../middlewares/auth';
 import { validateRequest } from '../middlewares/validate';
@@ -12,6 +23,7 @@ router.post('/categories', requireAuth, requireRole('admin'), validateRequest(cr
 
 // Products
 router.get('/', getProducts);
+router.get('/brands', getBrands);
 router.get('/suggest', suggestProducts);
 router.get('/:id', getProductById);
 router.post('/', requireAuth, requireRole('admin'), validateRequest(createProductSchema), createProduct);

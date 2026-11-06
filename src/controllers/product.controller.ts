@@ -142,25 +142,44 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
   try {
     const { 
       q, categoryId, brand, minPrice, maxPrice, 
-      sortBy, sortOrder, isFeatured,
-      page = 1, limit = 10 
+      sortBy, sortOrder, isFeatured, inStock, minRating,
+      page = 1, limit = 12 
     } = req.query;
 
     const query: any = { where: { isEnabled: true } };
 
-    // Search by name or description using PostgreSQL fullTextSearch
+    // Search by name, description, brand, sku, or category
     if (q) {
-      const searchQuery = String(q).trim().split(/\s+/).join(' | ');
-      query.where.OR = [
-        { name: { search: searchQuery } },
-        { description: { search: searchQuery } }
-      ];
+      const searchStr = String(q).trim();
+      const terms = searchStr.split(/\s+/).filter(Boolean);
+      if (terms.length > 0) {
+        query.where.AND = [
+          ...(query.where.AND || []),
+          ...terms.map(term => ({
+            OR: [
+              { name: { contains: term, mode: 'insensitive' } },
+              { description: { contains: term, mode: 'insensitive' } },
+              { brand: { contains: term, mode: 'insensitive' } },
+              { sku: { contains: term, mode: 'insensitive' } },
+              { category: { name: { contains: term, mode: 'insensitive' } } }
+            ]
+          }))
+        ];
+      }
     }
 
     if (categoryId) query.where.categoryId = String(categoryId);
     if (brand) query.where.brand = String(brand);
     if (isFeatured !== undefined) {
       query.where.isFeatured = String(isFeatured) === 'true';
+    }
+    if (inStock !== undefined && inStock !== '') {
+      if (String(inStock) === 'true') {
+        query.where.stockQuantity = { gt: 0 };
+      }
+    }
+    if (minRating) {
+      query.where.rating = { gte: Number(minRating) };
     }
     
     if (minPrice || maxPrice) {
@@ -170,15 +189,24 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
     }
 
     // Sorting
+    const order = String(sortOrder).toLowerCase() === 'asc' ? 'asc' : 'desc';
     if (sortBy && sortBy !== 'relevance') {
-      const order = String(sortOrder).toLowerCase() === 'desc' ? 'desc' : 'asc';
-      query.orderBy = { [String(sortBy)]: order };
+      const allowedSortFields = ['price', 'rating', 'createdAt', 'name', 'stockQuantity'];
+      if (allowedSortFields.includes(String(sortBy))) {
+        query.orderBy = { [String(sortBy)]: order };
+      } else {
+        query.orderBy = { createdAt: 'desc' };
+      }
+    } else if (!q) {
+      query.orderBy = { createdAt: 'desc' };
     }
 
     // Pagination
-    const skip = (Number(page) - 1) * Number(limit);
+    const pageNum = Math.max(1, Number(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 12));
+    const skip = (pageNum - 1) * limitNum;
     query.skip = skip;
-    query.take = Number(limit);
+    query.take = limitNum;
     query.include = { images: true, category: true };
 
     const [products, total] = await Promise.all([
@@ -190,11 +218,26 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
       data: products,
       meta: {
         total,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit))
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum)
       }
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Retrieve distinct brands for filtering
+export const getBrands = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const brands = await prisma.product.findMany({
+      where: { isEnabled: true, brand: { not: null } },
+      select: { brand: true },
+      distinct: ['brand']
+    });
+    const brandList = brands.map(b => b.brand).filter((b): b is string => Boolean(b)).sort();
+    res.json(brandList);
   } catch (error) {
     next(error);
   }
@@ -225,7 +268,9 @@ export const suggestProducts = async (req: Request, res: Response, next: NextFun
         isEnabled: true,
         OR: [
           { name: { contains: searchStr, mode: 'insensitive' } },
-          { description: { contains: searchStr, mode: 'insensitive' } }
+          { description: { contains: searchStr, mode: 'insensitive' } },
+          { brand: { contains: searchStr, mode: 'insensitive' } },
+          { sku: { contains: searchStr, mode: 'insensitive' } }
         ]
       },
       select: { id: true, name: true, brand: true, price: true, images: true },
