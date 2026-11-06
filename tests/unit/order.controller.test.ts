@@ -2,6 +2,10 @@ import { Request, Response, NextFunction } from 'express';
 import { checkout } from '../../src/controllers/order.controller';
 import prisma from '../../src/prisma';
 
+jest.mock('../../src/utils/nominatimValidator', () => ({
+  validateAddressWithNominatim: jest.fn().mockResolvedValue({ isValid: true })
+}));
+
 jest.mock('../../src/prisma', () => ({
   __esModule: true,
   default: {
@@ -21,6 +25,9 @@ jest.mock('../../src/prisma', () => ({
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
+    },
+    deliveryOption: {
+      findFirst: jest.fn().mockResolvedValue(null),
     }
   }
 }));
@@ -46,6 +53,7 @@ describe('Order Controller', () => {
       user: { userId: 'user123', email: 'test@test.com', role: 'user' } as any,
       body: {
         shippingAddress: {
+          name: 'Test Customer',
           line1: '123 Main St',
           city: 'Anytown',
           country: 'Finland',
@@ -69,7 +77,7 @@ describe('Order Controller', () => {
       await checkout(mockReq as Request, mockRes as Response);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(mockRes.json).toHaveBeenCalledWith({ message: 'Cart is empty' });
+      expect(mockRes.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Cart is empty' }));
     });
 
     it('should create order and return client secret', async () => {

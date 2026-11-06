@@ -73,7 +73,7 @@ describe('Cart Controller', () => {
       const mockCart = { id: 'cart1', items: [] };
       (prisma.cart.findUnique as jest.Mock).mockResolvedValue(mockCart);
       (prisma.cartItem.findUnique as jest.Mock).mockResolvedValue(null); // Item not in cart
-      (prisma.product.findUnique as jest.Mock).mockResolvedValue({ id: 'prod1', stockQuantity: 10 });
+      (prisma.product.findUnique as jest.Mock).mockResolvedValue({ id: 'prod1', stockQuantity: 10, isEnabled: true });
 
       await addToCart(mockReq as Request, mockRes as Response);
 

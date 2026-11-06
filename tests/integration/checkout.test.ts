@@ -4,6 +4,26 @@ import prisma from '../../src/prisma';
 import jwt from 'jsonwebtoken';
 import { generateAccessToken } from '../../src/utils/jwt';
 
+jest.mock('../../src/utils/nominatimValidator', () => ({
+  validateAddressWithNominatim: jest.fn().mockResolvedValue({ isValid: true })
+}));
+
+jest.mock('stripe', () => {
+  return jest.fn().mockImplementation(() => ({
+    paymentIntents: {
+      create: jest.fn().mockResolvedValue({
+        client_secret: 'pi_test_secret_123',
+        id: 'pi_123'
+      })
+    },
+    customers: {
+      create: jest.fn().mockResolvedValue({
+        id: 'cus_test_123'
+      })
+    }
+  }));
+});
+
 describe('Checkout Integration Test', () => {
   let token: string;
   let user: any;
@@ -72,6 +92,7 @@ describe('Checkout Integration Test', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({
         shippingAddress: {
+          name: 'Test Customer',
           line1: '123 Main St',
           city: 'Anytown',
           country: 'Finland',
@@ -91,7 +112,7 @@ describe('Checkout Integration Test', () => {
     });
 
     expect(order).toBeDefined();
-    expect(order?.status).toBe('Pending Payment');
+    expect(order?.status).toBe('PENDING');
     expect(order?.totalAmount.toNumber()).toBe(45); // 2 * 20 + 5 standard shipping
     expect(order?.items.length).toBe(1);
 

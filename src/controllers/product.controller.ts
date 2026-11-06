@@ -153,18 +153,28 @@ export const getProducts = async (req: Request, res: Response, next: NextFunctio
       const searchStr = String(q).trim();
       const terms = searchStr.split(/\s+/).filter(Boolean);
       if (terms.length > 0) {
-        query.where.AND = [
-          ...(query.where.AND || []),
-          ...terms.map(term => ({
-            OR: [
-              { name: { contains: term, mode: 'insensitive' } },
-              { description: { contains: term, mode: 'insensitive' } },
-              { brand: { contains: term, mode: 'insensitive' } },
-              { sku: { contains: term, mode: 'insensitive' } },
-              { category: { name: { contains: term, mode: 'insensitive' } } }
-            ]
-          }))
+        query.where.OR = [
+          { name: { contains: searchStr, mode: 'insensitive' } },
+          { description: { contains: searchStr, mode: 'insensitive' } },
+          { brand: { contains: searchStr, mode: 'insensitive' } },
+          { sku: { contains: searchStr, mode: 'insensitive' } },
+          { category: { name: { contains: searchStr, mode: 'insensitive' } } }
         ];
+
+        if (terms.length > 1) {
+          query.where.AND = [
+            ...(query.where.AND || []),
+            ...terms.map(term => ({
+              OR: [
+                { name: { contains: term, mode: 'insensitive' } },
+                { description: { contains: term, mode: 'insensitive' } },
+                { brand: { contains: term, mode: 'insensitive' } },
+                { sku: { contains: term, mode: 'insensitive' } },
+                { category: { name: { contains: term, mode: 'insensitive' } } }
+              ]
+            }))
+          ];
+        }
       }
     }
 
@@ -274,7 +284,7 @@ export const suggestProducts = async (req: Request, res: Response, next: NextFun
         ]
       },
       select: { id: true, name: true, brand: true, price: true, images: true },
-      take: 6
+      take: Number(req.query.limit) || 5
     });
     res.json(suggestions);
   } catch (error) {
