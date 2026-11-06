@@ -272,6 +272,17 @@ async function main() {
         transactionId: `txn_fake_${i}_${Date.now()}`
       }
     });
+
+    if (payStatusEnum === 'REFUNDED') {
+      await prisma.refund.create({
+        data: {
+          orderId: order.id,
+          amount: totalAmount.toFixed(2),
+          reason: 'Customer Requested Refund',
+          status: 'completed'
+        }
+      });
+    }
   }
 
   console.log('Seed data successfully generated.');

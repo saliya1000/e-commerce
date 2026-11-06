@@ -18,11 +18,15 @@ export const productImageSchema = Joi.object({
 
 export const createProductSchema = Joi.object({
   name: Joi.string().required(),
+  sku: Joi.string().allow(null, '').optional(),
   description: Joi.string().required(),
   price: Joi.number().positive().required(),
+  cost: Joi.number().min(0).allow(null, '').optional(),
   stockQuantity: Joi.number().integer().min(0).required(),
   categoryId: Joi.string().uuid().required(),
   brand: Joi.string().allow(null, '').optional(),
+  isEnabled: Joi.boolean().optional(),
+  isFeatured: Joi.boolean().optional(),
   weightMetric: Joi.number().positive().allow(null, '').optional(),
   weightImperial: Joi.number().positive().allow(null, '').optional(),
   lengthMetric: Joi.number().positive().allow(null, '').optional(),
@@ -79,30 +83,56 @@ export const getCategories = async (req: Request, res: Response, next: NextFunct
 export const createProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { 
-      name, description, price, cost, stockQuantity, categoryId, brand, 
+      name, sku, description, price, cost, stockQuantity, categoryId, brand, 
       weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
       lengthImperial, widthImperial, heightImperial,
       attributes, images, isEnabled, isFeatured
     } = req.body;
 
+    const formattedSku = sku && String(sku).trim() ? String(sku).trim() : null;
+
     const product = await prisma.product.create({
       data: {
-        name, description, price, cost, stockQuantity, categoryId, brand,
-        weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
-        lengthImperial, widthImperial, heightImperial,
+        name, 
+        sku: formattedSku,
+        description, 
+        price: Number(price), 
+        cost: cost !== undefined && cost !== null && cost !== '' ? Number(cost) : 0, 
+        stockQuantity: Number(stockQuantity), 
+        categoryId, 
+        brand: brand ? String(brand).trim() : null,
+        weightMetric: weightMetric !== undefined && weightMetric !== '' && weightMetric !== null ? Number(weightMetric) : null,
+        weightImperial: weightImperial !== undefined && weightImperial !== '' && weightImperial !== null ? Number(weightImperial) : null,
+        lengthMetric: lengthMetric !== undefined && lengthMetric !== '' && lengthMetric !== null ? Number(lengthMetric) : null,
+        widthMetric: widthMetric !== undefined && widthMetric !== '' && widthMetric !== null ? Number(widthMetric) : null,
+        heightMetric: heightMetric !== undefined && heightMetric !== '' && heightMetric !== null ? Number(heightMetric) : null,
+        lengthImperial: lengthImperial !== undefined && lengthImperial !== '' && lengthImperial !== null ? Number(lengthImperial) : null,
+        widthImperial: widthImperial !== undefined && widthImperial !== '' && widthImperial !== null ? Number(widthImperial) : null,
+        heightImperial: heightImperial !== undefined && heightImperial !== '' && heightImperial !== null ? Number(heightImperial) : null,
         isEnabled: isEnabled !== undefined ? Boolean(isEnabled) : true,
         isFeatured: isFeatured !== undefined ? Boolean(isFeatured) : false,
         attributes: {
-          create: attributes || []
+          create: (attributes || []).map((attr: any) => ({
+            name: attr.name,
+            value: attr.value
+          }))
         },
         images: {
-          create: images || []
+          create: (images || []).map((img: any) => ({
+            url: img.url,
+            thumbnailUrl: img.thumbnailUrl || null,
+            mediumUrl: img.mediumUrl || null,
+            isPrimary: Boolean(img.isPrimary)
+          }))
         }
       },
-      include: { attributes: true, images: true }
+      include: { attributes: true, images: true, category: true }
     });
     res.status(201).json(product);
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(400).json({ error: 'Product with this SKU already exists' });
+    }
     next(error);
   }
 };

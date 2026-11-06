@@ -94,26 +94,27 @@ export const AdminProducts: React.FC = () => {
       setEditingId(null);
       setFormData(initialFormState);
       fetchProducts();
-    } catch (err) {
-      alert('Failed to save product');
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.details?.join(', ') || 'Failed to save product';
+      alert(msg);
     }
   };
 
   const handleEdit = (prod: any) => {
     setEditingId(prod.id);
     setFormData({
-      name: prod.name,
+      name: prod.name || '',
       sku: prod.sku || '',
-      description: prod.description,
-      price: prod.price,
-      cost: prod.cost || 0,
-      stockQuantity: prod.stockQuantity,
-      categoryId: prod.categoryId,
+      description: prod.description || '',
+      price: prod.price !== undefined && prod.price !== null ? Number(prod.price) : 0,
+      cost: prod.cost !== undefined && prod.cost !== null ? Number(prod.cost) : 0,
+      stockQuantity: prod.stockQuantity !== undefined && prod.stockQuantity !== null ? Number(prod.stockQuantity) : 0,
+      categoryId: prod.categoryId || '',
       brand: prod.brand || '',
-      weightMetric: prod.weightMetric || '',
-      lengthMetric: prod.lengthMetric || '',
-      widthMetric: prod.widthMetric || '',
-      heightMetric: prod.heightMetric || '',
+      weightMetric: prod.weightMetric !== null && prod.weightMetric !== undefined ? String(prod.weightMetric) : '',
+      lengthMetric: prod.lengthMetric !== null && prod.lengthMetric !== undefined ? String(prod.lengthMetric) : '',
+      widthMetric: prod.widthMetric !== null && prod.widthMetric !== undefined ? String(prod.widthMetric) : '',
+      heightMetric: prod.heightMetric !== null && prod.heightMetric !== undefined ? String(prod.heightMetric) : '',
       isEnabled: prod.isEnabled !== false,
       isFeatured: Boolean(prod.isFeatured),
       attributes: prod.attributes || [],

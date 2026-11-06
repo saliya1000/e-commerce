@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { AdminSearch } from './AdminSearch';
 import { AdminPagination } from './AdminPagination';
-import { Eye, X, Package, MapPin } from 'lucide-react';
+import { Eye, X, Package, MapPin, RotateCcw } from 'lucide-react';
 
 export const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<any[]>([]);
@@ -15,6 +15,13 @@ export const AdminOrders: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('PENDING');
   
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+  // Refund modal state
+  const [refundModalOrder, setRefundModalOrder] = useState<any>(null);
+  const [refundReasonType, setRefundReasonType] = useState('Customer requested refund');
+  const [refundCustomReason, setRefundCustomReason] = useState('');
+  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [isRefunding, setIsRefunding] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -49,7 +56,54 @@ export const AdminOrders: React.FC = () => {
     }
   };
 
+  const openRefundModal = (order: any) => {
+    setRefundModalOrder(order);
+    setRefundAmount(Number(order.totalAmount || 0));
+    setRefundReasonType('Customer requested refund');
+    setRefundCustomReason('');
+  };
+
+  const submitRefund = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!refundModalOrder) return;
+    
+    const effectiveReason = refundReasonType === 'Other reason'
+      ? (refundCustomReason.trim() || 'Other reason')
+      : (refundCustomReason.trim() ? `${refundReasonType}: ${refundCustomReason.trim()}` : refundReasonType);
+
+    try {
+      setIsRefunding(true);
+      await api.post(`/admin/orders/${refundModalOrder.id}/refund`, {
+        amount: Number(refundAmount),
+        reason: effectiveReason
+      });
+      alert('Order marked as refunded successfully.');
+      setRefundModalOrder(null);
+      fetchOrders();
+      if (selectedOrder && selectedOrder.id === refundModalOrder.id) {
+        setSelectedOrder({
+          ...selectedOrder,
+          status: 'CANCELLED',
+          paymentStatus: 'REFUNDED'
+        });
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to initiate refund';
+      alert(msg);
+    } finally {
+      setIsRefunding(false);
+    }
+  };
+
   const updateStatus = async (orderId: string, field: 'status' | 'paymentStatus', value: string) => {
+    if (field === 'paymentStatus' && value === 'REFUNDED') {
+      const targetOrder = orders.find(o => o.id === orderId) || (selectedOrder?.id === orderId ? selectedOrder : null);
+      if (targetOrder) {
+        openRefundModal(targetOrder);
+        return;
+      }
+    }
+
     try {
       await api.put(`/admin/orders/${orderId}/status`, { [field]: value });
       fetchOrders();
@@ -58,18 +112,6 @@ export const AdminOrders: React.FC = () => {
       }
     } catch (err) {
       alert(`Failed to update ${field}`);
-    }
-  };
-
-  const handleRefund = async (orderId: string, amount: number) => {
-    const reason = window.prompt('Enter refund reason:');
-    if (reason === null) return;
-    try {
-      await api.post(`/admin/orders/${orderId}/refund`, { amount, reason });
-      alert('Refund initiated successfully');
-      fetchOrders();
-    } catch (err) {
-      alert('Failed to initiate refund');
     }
   };
 
@@ -202,14 +244,38 @@ export const AdminOrders: React.FC = () => {
                   >
                     <Eye size={18} />
                   </button>
-                  {['Payment Successful', 'Processing', 'Shipped', 'Delivered'].includes(order.status) && (
+                  {order.paymentStatus !== 'REFUNDED' ? (
                     <button 
-                      onClick={() => handleRefund(order.id, Number(order.totalAmount))} 
-                      className="btn btn-secondary"
-                      style={{ padding: '0.25rem 0.5rem', fontSize: '0.875rem' }}
+                      onClick={() => openRefundModal(order)} 
+                      className="btn"
+                      style={{ 
+                        padding: '0.3rem 0.65rem', 
+                        fontSize: '0.8rem', 
+                        background: 'rgba(239, 68, 68, 0.1)', 
+                        color: '#ef4444', 
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                      title="Mark Order as Refunded"
                     >
-                      Refund
+                      <RotateCcw size={14} /> Refund
                     </button>
+                  ) : (
+                    <span style={{ 
+                      padding: '0.25rem 0.5rem', 
+                      borderRadius: '6px', 
+                      fontSize: '0.75rem', 
+                      fontWeight: 600,
+                      background: 'rgba(245, 158, 11, 0.12)', 
+                      color: '#d97706' 
+                    }}>
+                      Refunded
+                    </span>
                   )}
                 </td>
               </tr>
@@ -279,6 +345,30 @@ export const AdminOrders: React.FC = () => {
                     <option value="REFUNDED">Refunded</option>
                   </select>
                 </p>
+                {selectedOrder.paymentStatus !== 'REFUNDED' && (
+                  <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => openRefundModal(selectedOrder)}
+                      className="btn"
+                      style={{
+                        padding: '0.35rem 0.85rem',
+                        fontSize: '0.825rem',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      <RotateCcw size={14} /> Issue Refund
+                    </button>
+                  </div>
+                )}
                 <p style={{ margin: '0 0 0.5rem' }}><strong>Customer:</strong> {selectedOrder.user?.email || 'Guest'}</p>
               </div>
               
@@ -351,6 +441,113 @@ export const AdminOrders: React.FC = () => {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Refund Confirmation Modal */}
+      {refundModalOrder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1100,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%', maxWidth: '520px',
+            padding: '2rem', borderRadius: '16px',
+            backgroundColor: 'var(--bg-main)', position: 'relative',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <button 
+              type="button"
+              onClick={() => setRefundModalOrder(null)}
+              style={{ position: 'absolute', top: '1.25rem', right: '1.25rem', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+            >
+              <X size={20} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '0.6rem', borderRadius: '50%' }}>
+                <RotateCcw size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Mark Order as Refunded</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Order #{refundModalOrder.id.slice(0, 8)}</p>
+              </div>
+            </div>
+
+            <form onSubmit={submitRefund} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Refund Amount ($) *
+                </label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  min="0.01" 
+                  max={Number(refundModalOrder.totalAmount)}
+                  value={refundAmount} 
+                  onChange={e => setRefundAmount(Number(e.target.value))}
+                  className="form-input"
+                  style={{ width: '100%' }}
+                  required
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Total order amount: ${Number(refundModalOrder.totalAmount).toFixed(2)}
+                </span>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  Refund Reason *
+                </label>
+                <select 
+                  value={refundReasonType}
+                  onChange={e => setRefundReasonType(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%', marginBottom: '0.5rem' }}
+                >
+                  <option value="Customer requested refund">Customer requested refund</option>
+                  <option value="Product out of stock / unavailable">Product out of stock / unavailable</option>
+                  <option value="Damaged or defective item">Damaged or defective item</option>
+                  <option value="Order delayed / lost in transit">Order delayed / lost in transit</option>
+                  <option value="Incorrect item received">Incorrect item received</option>
+                  <option value="Fraudulent or accidental transaction">Fraudulent or accidental transaction</option>
+                  <option value="Other reason">Other reason (specify below)</option>
+                </select>
+
+                <textarea
+                  placeholder={refundReasonType === 'Other reason' ? "Please specify reason (required)..." : "Additional notes or explanation (optional)..."}
+                  value={refundCustomReason}
+                  onChange={e => setRefundCustomReason(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%', resize: 'vertical' }}
+                  rows={3}
+                  required={refundReasonType === 'Other reason'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button 
+                  type="button" 
+                  className="btn btn-outline" 
+                  onClick={() => setRefundModalOrder(null)}
+                  disabled={isRefunding}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn"
+                  style={{ background: '#ef4444', color: 'white', fontWeight: 600 }}
+                  disabled={isRefunding}
+                >
+                  {isRefunding ? 'Processing...' : 'Confirm Refund'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

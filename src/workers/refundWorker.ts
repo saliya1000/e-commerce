@@ -57,15 +57,20 @@ export const startRefundWorker = async () => {
           data: { paymentStatus: 'REFUNDED' }
         });
         
-        // Create a Refund record so it shows up in the admin dashboard
-        await prisma.refund.create({
-          data: {
-            orderId: orderId,
-            amount: order.totalAmount,
-            reason: 'Order Cancelled',
-            status: 'completed'
-          }
+        // Create a Refund record if one doesn't exist yet so it shows up in the admin dashboard
+        const existingRefund = await prisma.refund.findFirst({
+          where: { orderId: orderId }
         });
+        if (!existingRefund) {
+          await prisma.refund.create({
+            data: {
+              orderId: orderId,
+              amount: order.totalAmount,
+              reason: order.cancelReason || 'Order Cancelled',
+              status: 'completed'
+            }
+          });
+        }
         
         // 2. Increment Stock (restore inventory)
         if (stockDeducted !== false) {

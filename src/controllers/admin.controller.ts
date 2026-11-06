@@ -179,16 +179,33 @@ export const getAllOrders = async (req: Request, res: Response, next: NextFuncti
 export const updateOrderStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { orderId } = req.params as { orderId: string };
-    const { status, shippingMethod, paymentStatus } = req.body;
+    const { status, shippingMethod, paymentStatus, reason, amount } = req.body;
     const data: any = {};
     if (status) data.status = status;
     if (shippingMethod) data.shippingMethod = shippingMethod;
     if (paymentStatus) data.paymentStatus = paymentStatus;
+    if (reason) data.cancelReason = reason;
 
     const order = await prisma.order.update({
       where: { id: orderId },
-      data
+      data,
+      include: { items: true, payments: true }
     });
+
+    if (paymentStatus === 'REFUNDED') {
+      const existingRefund = await prisma.refund.findFirst({ where: { orderId } });
+      if (!existingRefund) {
+        await prisma.refund.create({
+          data: {
+            orderId,
+            amount: amount ? Number(amount) : order.totalAmount,
+            reason: reason || 'Marked as refunded by admin',
+            status: 'completed'
+          }
+        });
+      }
+    }
+
     res.json(order);
   } catch (error) { next(error); }
 };
@@ -245,7 +262,8 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
       category: {
         include: { parent: true }
       }, 
-      images: true 
+      images: true,
+      attributes: true
     };
     query.orderBy = { createdAt: 'desc' };
 
@@ -624,7 +642,12 @@ export const bulkUploadProducts = async (req: Request, res: Response, next: Next
 export const updateProduct = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params as { id: string };
-    const { name, description, price, cost, stockQuantity, categoryId, brand, images, isEnabled, isFeatured } = req.body;
+    const { 
+      name, sku, description, price, cost, stockQuantity, categoryId, brand, 
+      weightMetric, weightImperial, lengthMetric, widthMetric, heightMetric,
+      lengthImperial, widthImperial, heightImperial,
+      attributes, images, isEnabled, isFeatured 
+    } = req.body;
     
     if (images && Array.isArray(images)) {
       await prisma.productImage.deleteMany({ where: { productId: id } });
@@ -641,17 +664,50 @@ export const updateProduct = async (req: Request, res: Response, next: NextFunct
       }
     }
 
+    if (attributes && Array.isArray(attributes)) {
+      await prisma.productAttribute.deleteMany({ where: { productId: id } });
+      if (attributes.length > 0) {
+        await prisma.productAttribute.createMany({
+          data: attributes.map((attr: any) => ({
+            productId: id,
+            name: attr.name,
+            value: attr.value
+          }))
+        });
+      }
+    }
+
     const updated = await prisma.product.update({
       where: { id },
       data: { 
-        name, description, price, cost, stockQuantity, categoryId, brand,
+        name, 
+        sku: sku !== undefined ? (sku && String(sku).trim() ? String(sku).trim() : null) : undefined,
+        description, 
+        price: price !== undefined ? Number(price) : undefined, 
+        cost: cost !== undefined && cost !== null && cost !== '' ? Number(cost) : undefined, 
+        stockQuantity: stockQuantity !== undefined ? Number(stockQuantity) : undefined, 
+        categoryId, 
+        brand: brand !== undefined ? (brand ? String(brand).trim() : null) : undefined,
+        ...(weightMetric !== undefined && { weightMetric: weightMetric !== '' && weightMetric !== null ? Number(weightMetric) : null }),
+        ...(weightImperial !== undefined && { weightImperial: weightImperial !== '' && weightImperial !== null ? Number(weightImperial) : null }),
+        ...(lengthMetric !== undefined && { lengthMetric: lengthMetric !== '' && lengthMetric !== null ? Number(lengthMetric) : null }),
+        ...(widthMetric !== undefined && { widthMetric: widthMetric !== '' && widthMetric !== null ? Number(widthMetric) : null }),
+        ...(heightMetric !== undefined && { heightMetric: heightMetric !== '' && heightMetric !== null ? Number(heightMetric) : null }),
+        ...(lengthImperial !== undefined && { lengthImperial: lengthImperial !== '' && lengthImperial !== null ? Number(lengthImperial) : null }),
+        ...(widthImperial !== undefined && { widthImperial: widthImperial !== '' && widthImperial !== null ? Number(widthImperial) : null }),
+        ...(heightImperial !== undefined && { heightImperial: heightImperial !== '' && heightImperial !== null ? Number(heightImperial) : null }),
         ...(isEnabled !== undefined && { isEnabled: Boolean(isEnabled) }),
         ...(isFeatured !== undefined && { isFeatured: Boolean(isFeatured) })
       },
-      include: { images: true, category: { include: { parent: true } } }
+      include: { images: true, attributes: true, category: { include: { parent: true } } }
     });
     res.json(updated);
-  } catch (error) { next(error); }
+  } catch (error: any) { 
+    if (error?.code === 'P2002') {
+      return res.status(400).json({ error: 'Product with this SKU already exists' });
+    }
+    next(error); 
+  }
 };
 
 export const deleteProduct = async (req: Request, res: Response, next: NextFunction) => {
@@ -707,27 +763,63 @@ export const deleteCategory = async (req: Request, res: Response, next: NextFunc
 export const createRefund = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { orderId } = req.params as { orderId: string };
+    const { amount, reason } = req.body;
     
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { payments: true }
+      include: { items: true, payments: true, refunds: true }
     });
 
     if (!order) {
       return res.status(404).json({ message: 'Order not found' });
     }
 
+    const refundReason = reason && String(reason).trim() ? String(reason).trim() : 'Customer requested refund';
+    const refundAmount = amount !== undefined && amount !== null && amount !== '' ? Number(amount) : Number(order.totalAmount);
+
     await prisma.order.update({
       where: { id: orderId },
-      data: { status: 'CANCELLED' }
+      data: { 
+        status: 'CANCELLED',
+        paymentStatus: 'REFUNDED',
+        cancelReason: refundReason
+      }
     });
+
+    // Create a Refund record immediately so it appears on the Refunds page
+    const refund = await prisma.refund.create({
+      data: {
+        orderId: orderId,
+        amount: refundAmount,
+        reason: refundReason,
+        status: 'completed'
+      }
+    });
+
+    // Restore inventory if items exist and order wasn't previously cancelled
+    if (order.status !== 'CANCELLED') {
+      for (const item of order.items) {
+        await prisma.product.update({
+          where: { id: item.productId },
+          data: {
+            stockQuantity: {
+              increment: item.quantity
+            }
+          }
+        });
+      }
+    }
 
     const payment = order.payments.find((p: any) => p.status === 'Succeeded');
     const transactionId = payment?.transactionId || undefined;
     
-    await publishRefundStatus(orderId, transactionId);
+    try {
+      await publishRefundStatus(orderId, transactionId, false);
+    } catch (amqpErr) {
+      console.error('[AMQP] Failed to publish refund status:', amqpErr);
+    }
 
-    res.status(200).json({ success: true, message: 'Refund initiated' });
+    res.status(200).json({ success: true, message: 'Refund completed successfully', refund });
   } catch (error) { next(error); }
 };
 
@@ -736,8 +828,34 @@ export const getRefunds = async (req: Request, res: Response, next: NextFunction
     const { page = 1, limit = 10, search = '' } = req.query;
     const searchStr = String(search).trim();
     
+    // Automatically ensure any orders marked as REFUNDED have a corresponding Refund record
+    const missingRefundOrders = await prisma.order.findMany({
+      where: {
+        paymentStatus: 'REFUNDED',
+        refunds: { none: {} }
+      }
+    });
+
+    if (missingRefundOrders.length > 0) {
+      await prisma.refund.createMany({
+        data: missingRefundOrders.map((o) => ({
+          orderId: o.id,
+          amount: o.totalAmount,
+          reason: o.cancelReason || 'Order Refunded',
+          status: 'completed',
+          createdAt: o.updatedAt || o.createdAt
+        }))
+      });
+    }
+
     const query: any = {
-      include: { order: true },
+      include: { 
+        order: {
+          include: {
+            user: { select: { id: true, email: true, firstName: true, lastName: true } }
+          }
+        } 
+      },
       where: {},
       orderBy: { createdAt: 'desc' }
     };
@@ -746,7 +864,8 @@ export const getRefunds = async (req: Request, res: Response, next: NextFunction
       query.where.OR = [
         { orderId: { contains: searchStr, mode: 'insensitive' } },
         { reason: { contains: searchStr, mode: 'insensitive' } },
-        { status: { contains: searchStr, mode: 'insensitive' } }
+        { status: { contains: searchStr, mode: 'insensitive' } },
+        { order: { user: { email: { contains: searchStr, mode: 'insensitive' } } } }
       ];
     }
 
