@@ -48,16 +48,18 @@ const Home: React.FC = () => {
         const res = await api.get('/storefront/home?limit=10');
         if (res.data) {
           setCollections(res.data.collections || []);
-          setFeaturedProducts(res.data.featuredProducts || []);
+          const featured = (res.data.featuredProducts || []).filter((p: any) => p.isFeatured);
+          setFeaturedProducts(featured);
         }
       } catch (err) {
         console.error('Failed to fetch storefront home data, falling back:', err);
         try {
           const [prodRes, catRes] = await Promise.all([
-            api.get('/products?limit=10&sortBy=rating&sortOrder=desc'),
+            api.get('/products?limit=10&isFeatured=true&sortBy=rating&sortOrder=desc'),
             api.get('/products/categories')
           ]);
-          setFeaturedProducts(prodRes.data?.data || []);
+          const fallbackFeatured = (prodRes.data?.data || []).filter((p: any) => p.isFeatured);
+          setFeaturedProducts(fallbackFeatured);
           const rawCats = catRes.data || [];
           setCollections(rawCats.map((c: any) => ({
             id: c.id,

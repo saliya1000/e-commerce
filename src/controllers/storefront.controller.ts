@@ -49,33 +49,14 @@ export const getStorefrontHome = async (req: Request, res: Response, next: NextF
       };
     });
 
-    // 2. Fetch featured products (default 10 for clean 5-column rows)
+    // 2. Fetch featured products (only products marked as isFeatured in backend)
     const limit = Number(req.query.limit) || 10;
-    let featuredProducts = await prisma.product.findMany({
+    const featuredProducts = await prisma.product.findMany({
       where: { isEnabled: true, isFeatured: true },
       take: limit,
       include: { images: true, category: true },
       orderBy: { rating: 'desc' }
     });
-
-    // If fewer than limit marked as isFeatured, backfill with top-rated/bestselling enabled products
-    if (featuredProducts.length < limit) {
-      const existingIds = featuredProducts.map((p) => p.id);
-      const additional = await prisma.product.findMany({
-        where: {
-          isEnabled: true,
-          id: { notIn: existingIds }
-        },
-        take: limit - featuredProducts.length,
-        include: { images: true, category: true },
-        orderBy: [
-          { rating: 'desc' },
-          { reviewCount: 'desc' },
-          { createdAt: 'desc' }
-        ]
-      });
-      featuredProducts = [...featuredProducts, ...additional];
-    }
 
     res.json({
       collections,

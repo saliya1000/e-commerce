@@ -16,6 +16,7 @@ export interface ProductTileProps {
     reviewCount?: number;
     category?: { id?: string; name?: string };
     images?: { url: string; mediumUrl?: string; thumbnailUrl?: string; isPrimary: boolean }[];
+    isFeatured?: boolean;
   };
 }
 
@@ -96,6 +97,27 @@ export const ProductTile: React.FC<ProductTileProps> = ({ product }) => {
           <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Package size={44} color="var(--text-muted)" opacity={0.4} />
           </div>
+        )}
+
+        {/* Featured Badge */}
+        {product.isFeatured && (
+          <span 
+            style={{
+              position: 'absolute',
+              top: '8px',
+              left: '8px',
+              background: '#f59e0b',
+              color: 'white',
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+              pointerEvents: 'none'
+            }}
+          >
+            ★ Featured
+          </span>
         )}
 
         {/* Subtle Out of Stock badge ONLY if out of stock */}
