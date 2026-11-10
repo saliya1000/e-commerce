@@ -4,6 +4,8 @@ import prisma from '../prisma';
 import { parse } from 'csv-parse/sync';
 import { publishRefundStatus } from '../utils/amqp';
 import crypto from 'crypto';
+import { generateAdminReportData } from '../services/adminReport.service';
+import { generateReportPdfBuffer, generateReportCsv } from '../utils/reportPdfGenerator';
 
 export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -288,6 +290,18 @@ export const getAdminProducts = async (req: Request, res: Response, next: NextFu
 
 export const getAdminReports = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const { reportType, startDate, endDate, search } = req.query;
+
+    if (reportType && reportType !== 'overview') {
+      const report = await generateAdminReportData(
+        reportType as string,
+        startDate as string | undefined,
+        endDate as string | undefined,
+        search as string | undefined
+      );
+      return res.json(report);
+    }
+
     // 1. Total Revenue & Order Count
     // Only count orders that are not Cancelled or Failed
     const revenueStats = await prisma.order.aggregate({
@@ -1093,149 +1107,59 @@ export const deleteFaq = async (req: Request, res: Response, next: NextFunction)
 
 export const downloadPdfReport = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { startDate, endDate, reportType } = req.query;
+    const { startDate, endDate, reportType, search } = req.query;
 
-    if (!startDate || !endDate || !reportType) {
-      return res.status(400).json({ error: 'Missing startDate, endDate, or reportType parameters' });
-    }
+    const type = (reportType as string) || 'sales';
+    const reportData = await generateAdminReportData(
+      type,
+      startDate as string | undefined,
+      endDate as string | undefined,
+      search as string | undefined
+    );
 
-    const start = new Date(startDate as string);
-    const end = new Date(endDate as string);
-    // Include end of the day for the end date
-    end.setHours(23, 59, 59, 999);
+    const pdfBuffer = await generateReportPdfBuffer({
+      reportType: reportData.reportType,
+      title: reportData.title,
+      subtitle: reportData.subtitle,
+      dateRange: reportData.dateRange,
+      metrics: reportData.metrics,
+      columns: reportData.columns,
+      rows: reportData.rows,
+      totals: reportData.totals
+    });
 
-    let htmlContent = `
-      <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-            h1 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { padding: 10px; border: 1px solid #e5e7eb; text-align: left; }
-            th { background-color: #f3f4f6; }
-            .total { font-weight: bold; font-size: 1.2em; margin-top: 20px; text-align: right; }
-          </style>
-        </head>
-        <body>
-    `;
+    const filename = `${reportData.reportType}_report_${reportData.startDate}_to_${reportData.endDate}.pdf`;
 
-    if (reportType === 'sales' || reportType === 'cost') {
-      const orders = await prisma.order.findMany({
-        where: {
-          createdAt: { gte: start, lte: end },
-          status: { notIn: ['CANCELLED'] }
-        },
-        include: { items: { include: { product: true } } },
-        orderBy: { createdAt: 'desc' }
-      });
-
-      let totalRevenue = 0;
-      let totalCost = 0; // Simulated cost
-
-      let rows = '';
-      orders.forEach(order => {
-        totalRevenue += Number(order.totalAmount);
-        
-        order.items.forEach(item => {
-          const itemRevenue = Number(item.price) * item.quantity;
-          const itemCost = Number(item.cost) * item.quantity; // Exact cost
-          totalCost += itemCost;
-
-          if (reportType === 'sales') {
-            rows += `
-              <tr>
-                <td>${order.id.slice(0,8)}</td>
-                <td>${new Date(order.createdAt).toLocaleDateString()}</td>
-                <td>${item.product?.name || 'Unknown'}</td>
-                <td>${item.quantity}</td>
-                <td>$${itemRevenue.toFixed(2)}</td>
-              </tr>
-            `;
-          } else if (reportType === 'cost') {
-            rows += `
-              <tr>
-                <td>${item.product?.name || 'Unknown'}</td>
-                <td>$${itemRevenue.toFixed(2)}</td>
-                <td>$${itemCost.toFixed(2)}</td>
-                <td>$${(itemRevenue - itemCost).toFixed(2)}</td>
-              </tr>
-            `;
-          }
-        });
-      });
-
-      if (reportType === 'sales') {
-        htmlContent += `
-          <h1>Sales Report</h1>
-          <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
-          <table>
-            <thead><tr><th>Order ID</th><th>Date</th><th>Product</th><th>Qty</th><th>Revenue</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="5">No sales found in this period.</td></tr>'}</tbody>
-          </table>
-          <div class="total">Total Revenue: $${totalRevenue.toFixed(2)}</div>
-        `;
-      } else {
-        htmlContent += `
-          <h1>Cost & Profit Report</h1>
-          <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
-          <table>
-            <thead><tr><th>Product</th><th>Revenue</th><th>Cost</th><th>Profit</th></tr></thead>
-            <tbody>${rows || '<tr><td colspan="4">No data found in this period.</td></tr>'}</tbody>
-          </table>
-          <div class="total">Total Profit: $${(totalRevenue - totalCost).toFixed(2)}</div>
-        `;
-      }
-    } else if (reportType === 'inventory') {
-      const products = await prisma.product.findMany({
-        where: {
-          updatedAt: { gte: start, lte: end } // Show products updated in range
-        },
-        orderBy: { stockQuantity: 'asc' }
-      });
-
-      let rows = '';
-      products.forEach(p => {
-        rows += `
-          <tr>
-            <td>${p.id.slice(0,8)}</td>
-            <td>${p.name}</td>
-            <td>$${Number(p.price).toFixed(2)}</td>
-            <td style="color: ${p.stockQuantity < 5 ? 'red' : 'black'}"><strong>${p.stockQuantity}</strong></td>
-          </tr>
-        `;
-      });
-
-      htmlContent += `
-        <h1>Inventory Report (Updated within range)</h1>
-        <p><strong>Date Range:</strong> ${start.toLocaleDateString()} - ${end.toLocaleDateString()}</p>
-        <table>
-          <thead><tr><th>ID</th><th>Name</th><th>Price</th><th>Stock Quantity</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="4">No inventory updates found in this period.</td></tr>'}</tbody>
-        </table>
-      `;
-    }
-
-    htmlContent += `
-        </body>
-      </html>
-    `;
-
-    // Generate PDF using Puppeteer
-    const puppeteerModule = await Function('return import("puppeteer")')();
-    const puppeteer = puppeteerModule.default || puppeteerModule;
-    const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'load' });
-    const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '20px', right: '20px', bottom: '20px', left: '20px' } });
-    await browser.close();
-
-    // Send PDF response
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${reportType}_report_${startDate}_to_${endDate}.pdf"`);
-    res.send(Buffer.from(pdfBuffer));
-
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (error) {
     console.error('PDF Generation Error:', error);
+    next(error);
+  }
+};
+
+export const downloadCsvReport = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { startDate, endDate, reportType, search } = req.query;
+
+    const type = (reportType as string) || 'sales';
+    const reportData = await generateAdminReportData(
+      type,
+      startDate as string | undefined,
+      endDate as string | undefined,
+      search as string | undefined
+    );
+
+    const csvContent = generateReportCsv(reportData.columns, reportData.rows);
+    const filename = `${reportData.reportType}_report_${reportData.startDate}_to_${reportData.endDate}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvContent);
+  } catch (error) {
+    console.error('CSV Generation Error:', error);
     next(error);
   }
 };

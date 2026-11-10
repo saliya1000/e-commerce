@@ -8,7 +8,7 @@ import {
   createRefund, getRefunds,
   getDeliveryOptions, createDeliveryOption, updateDeliveryOption, deleteDeliveryOption,
   getFaqs, createFaq, updateFaq, deleteFaq,
-  getAdminProducts, promoteToAdmin, getAdminReports, downloadPdfReport,
+  getAdminProducts, promoteToAdmin, getAdminReports, downloadPdfReport, downloadCsvReport,
   getCoupons, createCoupon, updateCoupon, deleteCoupon
 } from '../controllers/admin.controller';
 import {
@@ -70,6 +70,7 @@ router.delete('/faqs/:id', deleteFaq);
 
 // Reports
 router.get('/reports/download', downloadPdfReport);
+router.get('/reports/csv', downloadCsvReport);
 router.get('/reports', getAdminReports);
 
 // User Activity & Session Logs (Strictly Superadmin)
