@@ -83,6 +83,30 @@ We engineered the application to handle high traffic and large datasets seamless
 - **Server-Side Pagination**: API endpoints utilize strict server-side pagination (limit/offset) to ensure fast response times, even with catalogs containing thousands of products.
 - **Full-Text Search**: Replaced standard `LIKE` operators with optimized database-level full-text search indexes (`tsvector`), drastically reducing query execution times on large tables.
 
+### Concurrency & Response Time Benchmarks
+
+Rigorous empirical load testing was conducted against the live containerized stack to determine the concurrency limits under real-world e-commerce read workloads (product browsing, search, multi-attribute filtering, and category aggregation):
+
+- **Maximum Concurrent Users (< 5.0s response time):** **420 Concurrent Users (VUs)**
+  - **Throughput:** ~140.9 requests/second
+  - **Average Latency:** 2,599 ms
+  - **95th Percentile ($p95$):** 4,090 ms
+  - **Max Latency:** 4,164 ms (0 requests exceeded 5.0 seconds)
+- **Breach Point (Threshold Exceeded):** **480 Concurrent Users**
+  - **95th Percentile ($p95$):** 5,318 ms
+  - **Max Latency:** 5,426 ms (15.43% of requests exceeded 5.0 seconds)
+
+For complete methodology, latency progression charts, bottleneck profiling, and scaling recommendations, see the [Detailed Load Test Report](load-tests/LOAD_TEST_REPORT.md).
+
+To reproduce the benchmark:
+```bash
+# Standalone automated runner:
+node load-tests/run-load-test.js
+
+# Or via k6:
+k6 run load-tests/k6-script.js
+```
+
 ---
 
 ## Getting Started

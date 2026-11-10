@@ -2,31 +2,50 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 export const options = {
+  insecureSkipTLSVerify: true,
   stages: [
-    { duration: '30s', target: 50 }, // Ramp-up to 50 users
-    { duration: '1m', target: 50 },  // Stay at 50 users
-    { duration: '30s', target: 0 },  // Ramp-down
+    { duration: '20s', target: 50 },   // Warm-up to 50 users
+    { duration: '30s', target: 100 },  // Scale to 100 users
+    { duration: '30s', target: 250 },  // Scale to 250 users
+    { duration: '40s', target: 420 },  // Sustained load at max capacity (420 users)
+    { duration: '30s', target: 480 },  // Stress load beyond capacity (480 users)
+    { duration: '20s', target: 0 },    // Ramp-down to 0
   ],
   thresholds: {
-    http_req_duration: ['p(90)<2000'], // 90% of requests must complete within 2s
-    http_req_failed: ['rate<0.05'],    // Error rate must be less than 5%
+    // Primary requirement: response time must not exceed 5000ms (5 seconds)
+    http_req_duration: ['p(95)<5000'],
+    http_req_failed: ['rate<0.05'],
   },
 };
 
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = __ENV.TARGET_URL || 'https://localhost:3000/api';
+
+const ENDPOINTS = [
+  '/products',
+  '/products?q=dog',
+  '/products?sortBy=price&sortOrder=asc',
+  '/products?minPrice=20&maxPrice=50',
+  '/products/brands',
+  '/products/categories',
+];
 
 export default function () {
-  // 1. Browse product catalog
-  let res = http.get(`${BASE_URL}/products`);
-  check(res, { 'status was 200 (products)': (r) => r.status === 200 });
-  sleep(1);
+  const endpoint = ENDPOINTS[Math.floor(Math.random() * ENDPOINTS.length)];
+  const clientIp = `10.200.${Math.floor(__VU / 250)}.${(__VU % 250) + 1}`;
 
-  // 2. Search for products
-  res = http.get(`${BASE_URL}/products?q=dog`);
-  check(res, { 'status was 200 (search)': (r) => r.status === 200 });
-  sleep(1);
+  const params = {
+    headers: {
+      'User-Agent': 'k6-load-test/1.0',
+      'X-Forwarded-For': clientIp,
+    },
+  };
 
-  // Note: Registration/Checkout would require dynamic payload parsing and DB cleanup
-  // For the sake of this test scenario, we focus on heavy read traffic 
-  // (which is 90% of e-commerce traffic).
+  const res = http.get(`${BASE_URL}${endpoint}`, params);
+
+  check(res, {
+    'status is 200': (r) => r.status === 200,
+    'response under 5 seconds': (r) => r.timings.duration < 5000,
+  });
+
+  sleep(0.5);
 }
