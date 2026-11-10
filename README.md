@@ -17,7 +17,8 @@ A powerful, high-performance E-commerce Admin Dashboard tailored for managing pr
 3. [Architecture & ERD](#architecture--erd)
 4. [Performance Analysis](#performance-analysis)
 5. [Getting Started](#getting-started)
-6. [Usage Guide](#usage-guide)
+6. [Seeded Staff Test Accounts](#seeded-staff-test-accounts)
+7. [Usage Guide](#usage-guide)
 
 ---
 
@@ -176,6 +177,25 @@ Open a new terminal:
 cd frontend
 npm run dev # Starts frontend
 ```
+
+---
+
+## Seeded Staff Test Accounts
+
+For evaluation, grading, and testing purposes, the database is pre-seeded with the following staff and user accounts:
+
+| Role | Email | Password | 2FA Secret | Permissions & Available Features |
+| :--- | :--- | :--- | :--- | :--- |
+| **Superadmin** | `superadmin@example.com` | `password123` | `JBSWY3DPEHPK3PXP` | Master access: User Role Promotion/Demotion, System Admin, and exclusive **User Activity Reports** |
+| **Admin** | `admin@example.com` | `password123` | `JBSWY3DPEHPK3PXP` | Full store administration: Products, Bulk Upload, Categories, Promotions, Orders, Delivery, and Reports |
+| **Support** | `support@example.com` | `password123` | *(None - Standard)* | Customer support: Order fulfillment, Refunds processing, Review moderation, and FAQ management |
+| **Sales** | `sales@example.com` | `password123` | *(None - Standard)* | Commercial management: Sales performance analytics, Custom PDF reports, Promotions, and Catalog views |
+| **Customer** | `user1@example.com` | `password123` | *(None - Standard)* | Storefront browsing, Cart, Checkout, Reviews, Order history, and Account settings (Users `user1`–`user20`) |
+
+> [!TIP]
+> **Generating 2FA Codes for Superadmin & Admin:**
+> - Superadmin and Admin accounts enforce Two-Factor Authentication (2FA) for heightened administrative security.
+> - Use the manual secret key `JBSWY3DPEHPK3PXP` in any standard Authenticator app (e.g. Google Authenticator, Authy, or an online TOTP generator) to generate the 6-digit login token.
 
 ---
 
