@@ -11,6 +11,13 @@ import {
   getAdminProducts, promoteToAdmin, getAdminReports, downloadPdfReport,
   getCoupons, createCoupon, updateCoupon, deleteCoupon
 } from '../controllers/admin.controller';
+import {
+  getActivitySummary,
+  getUserSessions,
+  getActivityLogs,
+  getUserActivityDossier,
+  exportActivityLogs
+} from '../controllers/activityLog.controller';
 import { requireAuth, requireRole } from '../middlewares/auth';
 import { auditLogger } from '../middlewares/auditLogger';
 import { uploadCsv } from '../middlewares/upload';
@@ -64,6 +71,13 @@ router.delete('/faqs/:id', deleteFaq);
 // Reports
 router.get('/reports/download', downloadPdfReport);
 router.get('/reports', getAdminReports);
+
+// User Activity & Session Logs (Strictly Superadmin)
+router.get('/activity-logs/summary', requireRole('superadmin'), getActivitySummary);
+router.get('/activity-logs/sessions', requireRole('superadmin'), getUserSessions);
+router.get('/activity-logs/users/:userId', requireRole('superadmin'), getUserActivityDossier);
+router.get('/activity-logs/export', requireRole('superadmin'), exportActivityLogs);
+router.get('/activity-logs', requireRole('superadmin'), getActivityLogs);
 
 // Coupons
 router.get('/coupons', getCoupons);

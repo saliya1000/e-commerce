@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { SEO } from '../components/SEO';
-import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Tag, Star, Truck } from 'lucide-react';
+import { Users, Package, HelpCircle, Trash2, FolderTree, ShoppingCart, RefreshCcw, UploadCloud, BarChart, Tag, Star, Truck, ShieldAlert } from 'lucide-react';
 
 import { AdminCategories } from '../components/admin/AdminCategories';
 import { AdminProducts } from '../components/admin/AdminProducts';
@@ -17,6 +17,7 @@ import { AdminPromotions } from '../components/admin/AdminPromotions';
 import { AdminReviews } from '../components/admin/AdminReviews';
 import { AdminBulkUpload } from '../components/admin/AdminBulkUpload';
 import { AdminDeliveryOptions } from '../components/admin/AdminDeliveryOptions';
+import { AdminActivityLogs } from '../components/admin/AdminActivityLogs';
 
 const AdminDashboard: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -67,6 +68,12 @@ const AdminDashboard: React.FC = () => {
       fetchFaqs();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab === 'activity-logs' && user?.role !== 'superadmin') {
+      setActiveTab('dashboard');
+    }
+  }, [activeTab, user]);
 
   const fetchFaqs = async () => {
     setLoading(true);
@@ -280,6 +287,27 @@ const AdminDashboard: React.FC = () => {
         >
           <HelpCircle size={18} /> Manage FAQs
         </button>
+
+        {user?.role === 'superadmin' && (
+          <button 
+            onClick={() => setActiveTab('activity-logs')}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '0.5rem', 
+              padding: '0.75rem 1rem', 
+              background: activeTab === 'activity-logs' ? '#dc2626' : 'transparent', 
+              color: activeTab === 'activity-logs' ? 'white' : '#dc2626', 
+              border: '1px solid',
+              borderColor: activeTab === 'activity-logs' ? '#dc2626' : '#fecaca',
+              borderRadius: '8px', 
+              cursor: 'pointer', 
+              textAlign: 'left',
+              fontWeight: 'bold',
+              marginTop: '0.5rem'
+            }}
+          >
+            <ShieldAlert size={18} color={activeTab === 'activity-logs' ? 'white' : '#dc2626'} /> User Activity Logs
+          </button>
+        )}
       </div>
 
       {/* Main Content */}
@@ -402,6 +430,10 @@ const AdminDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'activity-logs' && user?.role === 'superadmin' && (
+          <AdminActivityLogs />
         )}
       </div>
     </div>

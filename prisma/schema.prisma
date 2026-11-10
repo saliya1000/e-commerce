@@ -45,6 +45,7 @@ model User {
   addresses          Address[]
   paymentMethods     PaymentMethod[]
   auditLogs          AuditLog[]
+  userSessions       UserSession[]
 }
 
 model RefreshToken {
@@ -287,6 +288,24 @@ model Faq {
   updatedAt DateTime @updatedAt
 }
 
+model UserSession {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String?
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+  ipAddress  String?
+  userAgent  String?
+  status     String    @default("ACTIVE") // ACTIVE, LOGGED_OUT
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([loginTime])
+}
+
 model AuditLog {
   id        String   @id @default(uuid())
   userId    String
@@ -296,6 +315,10 @@ model AuditLog {
   details   String?  // JSON stringified details
   ipAddress String?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Coupon {

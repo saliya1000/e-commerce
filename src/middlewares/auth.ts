@@ -78,7 +78,8 @@ export const requireRole = (roles: string | string[]) => {
     }
 
     const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    if (!allowedRoles.includes(req.user.role)) {
+    const isAllowed = allowedRoles.includes(req.user.role) || (req.user.role === 'superadmin' && allowedRoles.includes('admin'));
+    if (!isAllowed) {
       return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
     }
 

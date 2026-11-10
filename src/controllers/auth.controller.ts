@@ -136,6 +136,32 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       }
     });
 
+    // Record login session & audit log
+    try {
+      await prisma.userSession.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashedRT,
+          loginTime: new Date(),
+          ipAddress: req.ip || req.connection?.remoteAddress || null,
+          userAgent: req.headers['user-agent'] ? String(req.headers['user-agent']) : null,
+          status: 'ACTIVE'
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'LOGIN',
+          resource: '/api/auth/login',
+          details: JSON.stringify({ email: user.email, role: user.role }),
+          ipAddress: req.ip || req.connection?.remoteAddress || null
+        }
+      });
+    } catch (sessionErr) {
+      console.error('Failed to record user login session/audit:', sessionErr);
+    }
+
     // Set refresh token as HttpOnly cookie
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -235,10 +261,20 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
 export const logout = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { refreshToken } = req.cookies;
+    let logoutUserId: string | null = null;
+    let hashedRT: string | null = null;
 
     // Revoke Refresh Token if present
     if (refreshToken) {
-      const hashedRT = hashToken(refreshToken);
+      hashedRT = hashToken(refreshToken);
+      const tokenRecord = await prisma.refreshToken.findUnique({
+        where: { tokenHash: hashedRT },
+        select: { userId: true }
+      });
+      if (tokenRecord) {
+        logoutUserId = tokenRecord.userId;
+      }
+
       await prisma.refreshToken.updateMany({
         where: { tokenHash: hashedRT },
         data: { isRevoked: true }
@@ -251,6 +287,9 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
       const accessToken = authHeader.split(' ')[1];
       try {
         const decoded = jwt.decode(accessToken) as jwt.JwtPayload;
+        if (decoded && decoded.userId && !logoutUserId) {
+          logoutUserId = decoded.userId;
+        }
         if (decoded && decoded.exp) {
           const expiresAt = new Date(decoded.exp * 1000);
           const hashedAT = hashToken(accessToken);
@@ -266,6 +305,35 @@ export const logout = async (req: Request, res: Response, next: NextFunction) =>
         }
       } catch (err) {
         console.warn('Failed to parse access token during logout');
+      }
+    }
+
+    // Record logout time in UserSession and log AuditLog
+    if (logoutUserId) {
+      try {
+        const now = new Date();
+        if (hashedRT) {
+          await prisma.userSession.updateMany({
+            where: { tokenHash: hashedRT, status: 'ACTIVE' },
+            data: { logoutTime: now, status: 'LOGGED_OUT' }
+          });
+        }
+        await prisma.userSession.updateMany({
+          where: { userId: logoutUserId, status: 'ACTIVE' },
+          data: { logoutTime: now, status: 'LOGGED_OUT' }
+        });
+
+        await prisma.auditLog.create({
+          data: {
+            userId: logoutUserId,
+            action: 'LOGOUT',
+            resource: '/api/auth/logout',
+            details: JSON.stringify({ status: 'LOGGED_OUT' }),
+            ipAddress: req.ip || req.connection?.remoteAddress || null
+          }
+        });
+      } catch (sessionErr) {
+        console.error('Failed to record user logout session/audit:', sessionErr);
       }
     }
 
@@ -402,6 +470,32 @@ export const googleCallback = async (req: Request, res: Response, next: NextFunc
         expiresAt
       }
     });
+
+    // Record login session & audit log
+    try {
+      await prisma.userSession.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashedRT,
+          loginTime: new Date(),
+          ipAddress: req.ip || req.connection?.remoteAddress || null,
+          userAgent: req.headers['user-agent'] ? String(req.headers['user-agent']) : null,
+          status: 'ACTIVE'
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'LOGIN',
+          resource: '/api/auth/login',
+          details: JSON.stringify({ email: user.email, role: user.role }),
+          ipAddress: req.ip || req.connection?.remoteAddress || null
+        }
+      });
+    } catch (sessionErr) {
+      console.error('Failed to record user login session/audit:', sessionErr);
+    }
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,

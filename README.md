@@ -37,7 +37,11 @@ HappyPets Admin Dashboard streamlines e-commerce operations with a focus on spee
 ### Security Protocols
 - **Data Encryption**: All Personally Identifiable Information (PII) and passwords are securely encrypted using industry-standard hashing algorithms (bcrypt).
 - **Strict Role-Based Admin Promotion**: Implements the Principle of Least Privilege. Standard admins cannot elevate privileges; only a designated `superadmin` can promote or demote other users.
-- **Audit Logging**: Critical administrative actions are tracked for security and compliance.
+- **Audit Logging & Activity Tracking**: Critical administrative actions are tracked for security and compliance.
+- **Superadmin User Activity Reports**: Exclusive to the `superadmin` role, providing separated **Role-Wise** and **User Account-Wise** audit reports monitoring `support`, `sales`, and `admin` activities:
+  - Real-time authentication session tracking with exact **logged-in time**, **logged-out time**, active status, and session durations.
+  - Granular operation logging across catalog updates, refunds, order status modifications, and promotions.
+  - Instant CSV report exports for compliance and security auditing.
 
 ### Frontend Accessibility
 - **Responsive Design**: Flawlessly adapts to any screen size, ranging from **320px mobile devices up to 1440px ultrawide displays**.
