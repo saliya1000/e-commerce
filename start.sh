@@ -3,8 +3,13 @@
 
 echo "Starting I Love Shopping platform..."
 
-# Stop any running containers just in case
-docker compose down
+# Stop any running containers (use --clean or -v to wipe volumes)
+if [ "$1" == "--clean" ] || [ "$1" == "-v" ]; then
+    echo "Performing clean reset (removing persistent volumes)..."
+    docker compose down -v
+else
+    docker compose down
+fi
 
 # Build and start in detached mode
 docker compose up --build -d

@@ -136,8 +136,15 @@ Containerization makes running this project incredibly simple. Everything is bun
 ```bash
 chmod +x start.sh
 ./start.sh
-# Alternatively: docker-compose up --build -d
+# Alternatively: docker compose up --build -d
 ```
+
+> [!TIP]
+> **Clean Reset:** If you previously ran into a failed migration or wish to completely reset the PostgreSQL volume, run:
+> ```bash
+> ./start.sh -v
+> # Alternatively: docker compose down -v && docker compose up --build -d
+> ```
 
 Once running, access the services:
 - **Frontend**: `https://localhost`
